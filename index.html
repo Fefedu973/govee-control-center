@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Govee Devices</title>
+</head>
+
+<body>
+    <style>
+        body {
+            background-color: rgb(54, 54, 54);
+            color: white;
+        }
+
+        .device-box {
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+
+        .on {
+            background-color: rgb(122, 122, 0);
+        }
+
+        .off {
+            background-color: black;
+        }
+    </style>
+
+    <h1 id="title">Your Devices</h1>
+    <div id="devices-container"></div>
+
+    <script>
+
+        async function openColorPicker(device) {
+            return new Promise((resolve, reject) => {
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.addEventListener('input', () => {
+                    // Resolve with the selected color value when input changes
+                    const selectedColor = colorInput.value;
+
+
+                    // Convert the selected color to RGB format
+                    const rgb = hexToRgb(selectedColor);
+                    const rgbValue = ((rgb.r & 0xFF) << 16) | ((rgb.g & 0xFF) << 8) | (rgb.b & 0xFF);
+
+                    resolve(rgbValue);
+
+                    // Remove the color input element from the DOM
+                    document.body.removeChild(colorInput);
+                });
+
+                // Append the color input element to the body
+                document.body.appendChild(colorInput);
+
+                // Trigger a click on the color input to open the color picker
+                colorInput.click();
+            });
+        }
+
+        function hexToRgb(hex) {
+            // Remove the leading # if it exists
+            hex = hex.replace(/^#/, '');
+
+            // Parse the hex values to RGB
+            const bigint = parseInt(hex, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+
+            return { r, g, b };
+        }
+
+        async function changeColor(device) {
+            const selectedColor = await openColorPicker(device);
+            const response = await fetch('http://localhost:3000/device/color', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                        color: selectedColor,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data.capability.value;
+        }
+
+        async function toggleDevice(device, state) {
+            const response = await fetch('http://localhost:3000/device/toggle', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                        state: state,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data.capability.value;
+        }
+
+        async function changeBrightness(device, brightness) {
+            brightness = parseInt(brightness);
+            const response = await fetch('http://localhost:3000/device/brightness', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                        brightness: brightness,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data.capability.value;
+        }
+
+        async function fetchDeviceState(device) {
+            const response = await fetch('http://localhost:3000/device/state', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data;
+        }
+
+        async function fetchLightScenes(device) {
+            const response = await fetch('http://localhost:3000/device/lightscenes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data;
+        }
+
+        async function fetchDIYScenes(device) {
+            const response = await fetch('http://localhost:3000/device/diyscenes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data;
+        }
+
+        async function changeLightScene(device, scene, type) {
+            const response = await fetch('http://localhost:3000/device/dynamic-scene', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requestId: 'uuid',
+                    payload: {
+                        sku: device.sku,
+                        device: device.device,
+                        scene: scene,
+                        instance: type,
+                    },
+                }),
+            });
+
+            const data = await response.json();
+            return data.capability.value;
+        }
+
+        async function displayDevices(data) {
+            const devicesContainer = document.getElementById('devices-container');
+            devicesContainer.innerHTML = '';
+            let deviceCount = 0;
+
+            for (const device of data) {
+                const deviceBox = document.createElement('div');
+                deviceBox.classList.add('device-box');
+
+                // Fetch device state
+                const status = await fetchDeviceState(device);
+                const onOffCapability = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.on_off');
+                const colorstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
+                const brightnessstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.range');
+                const containDynamicScene = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene');
+
+                let lightscenes = await fetchLightScenes(device);
+                let diyscenes = await fetchDIYScenes(device);
+
+
+
+                // Display device information
+                deviceBox.innerHTML = `
+                    <h2>${device.deviceName}</h2>
+                    <p>SKU: ${device.sku}</p>
+                    <p>Device ID: ${device.device}</p>
+                    <h3>Capabilities:</h3>
+                    <ul>
+                        ${device.capabilities.map(capability => `
+                            <li>Type: ${capability.type}, Instance: ${capability.instance}</li>
+                        `).join('')}
+                    </ul>
+                `;
+
+                if (onOffCapability) {
+                    // Display toggle button
+                    const toggleButton = document.createElement('button');
+                    toggleButton.innerHTML = 'Toggle';
+                    toggleButton.addEventListener('click', async () => {
+                        const newOnOffCapability = await toggleDevice(device, onOffCapability.state.value === 1 ? 0 : 1);
+                        if (colorstatus) {
+                            if (newOnOffCapability === 1) {
+                                let hex = colorstatus.state.value.toString(16);
+                                while (hex.length < 6) {
+                                    hex = '0' + hex;
+                                }
+                                const hexColor = '#' + hex;
+                                deviceBox.style.backgroundImage = `linear-gradient(to right, rgb(122, 122, 0), ${hexColor})`;
+                            } else {
+                                deviceBox.style.backgroundImage = `linear-gradient(to right, black, black)`;
+                            }
+                        }
+                        else {
+                            if (newOnOffCapability === 1) {
+                                deviceBox.classList.add('on');
+                                deviceBox.classList.remove('off');
+                            } else {
+                                deviceBox.classList.add('off');
+                                deviceBox.classList.remove('on');
+                            }
+                        }
+                        onOffCapability.state.value = newOnOffCapability;
+                    });
+                    deviceBox.appendChild(toggleButton);
+                }
+
+                if (colorstatus) {
+                    let hex = colorstatus.state.value.toString(16);
+                    while (hex.length < 6) {
+                        hex = '0' + hex;
+                    }
+                    const hexColor = '#' + hex;
+
+                    if (onOffCapability.state.value === 1) {
+                        deviceBox.style.backgroundImage = `linear-gradient(to right, rgb(122, 122, 0), ${hexColor})`;
+                    } else {
+                        deviceBox.style.backgroundImage = `linear-gradient(to right, black, black)`;
+                    }
+                }
+                else {
+                    // Update deviceBox color based on state
+                    if (onOffCapability && onOffCapability.state.value === 1) {
+                        deviceBox.classList.add('on');
+                    } else {
+                        deviceBox.classList.add('off');
+                    }
+                }
+
+                //Add a button to open the color picker to change the color of the device if it has the color capability 'devices.capabilities.color_setting'
+                const colorCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
+                if (colorCapability) {
+                    const colorButton = document.createElement('button');
+                    colorButton.innerHTML = 'Change Color';
+                    colorButton.addEventListener('click', async () => {
+                        const newColorCapability = await changeColor(device);
+                        colorstatus.state.value = newColorCapability;
+                        let hex = colorstatus.state.value.toString(16);
+                        while (hex.length < 6) {
+                            hex = '0' + hex;
+                        }
+                        const hexColor = '#' + hex;
+                        if (onOffCapability.state.value === 1) {
+                            deviceBox.style.backgroundImage = `linear-gradient(to right, rgb(122, 122, 0), ${hexColor})`;
+                        } else {
+                            deviceBox.style.backgroundImage = `linear-gradient(to right, black, black)`;
+                        }
+                    });
+                    deviceBox.appendChild(colorButton);
+                }
+
+
+
+                //add a brightness slider if the device has the brightness capability 'devices.capabilities.range'
+                const brightnessCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.range');
+                if (brightnessCapability && device.sku !== 'H6143') {
+                    const brightnessSlider = document.createElement('input');
+                    brightnessSlider.type = 'range';
+                    brightnessSlider.min = 1;
+                    brightnessSlider.max = 100;
+                    brightnessSlider.step = 1;
+                    brightnessSlider.value = brightnessstatus.state.value;
+                    brightnessSlider.addEventListener('input', async () => {
+                        const newBrightnessCapability = await changeBrightness(device, brightnessSlider.value);
+                        brightnessCapability.state.value = newBrightnessCapability;
+                    });
+                    deviceBox.appendChild(brightnessSlider);
+                }
+
+                try {
+                    lightscenes = lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters.options;
+                    diyscenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
+
+                    //if the device has the capability 'devices.capabilities.dynamic_scene' add a button to change the light scene
+
+                    if (containDynamicScene) {
+                        const dynamicSceneButton = document.createElement('select');
+                        let scenes = lightscenes.concat(diyscenes);
+
+
+                        for (scene of scenes) {
+                            const option = document.createElement('option');
+                            option.value = scene.value;
+                            option.innerHTML = scene.name;
+                            dynamicSceneButton.appendChild(option);
+                        }
+                        dynamicSceneButton.addEventListener('change', async () => {
+                            //we want to know if the scene is a light scene or a diy scene but the only way to know is to check if the scene is in the lightscenes array or the diyscenes array
+                            let scenevalue = parseInt(dynamicSceneButton.value);
+                            let type = 'lightScene';
+                            if (lightscenes.find(scene => scene.value === scenevalue) === undefined) {
+                                type = 'diyScene';
+                            }
+                            const response = await changeLightScene(device, scenevalue, type);
+
+                            const data = await response.json();
+                            return data.capability.value;
+                        });
+                        deviceBox.appendChild(dynamicSceneButton);
+                    }
+                } catch (error) {
+                    console.log(error);
+                }
+
+                devicesContainer.appendChild(deviceBox);
+                deviceCount++;
+            }
+            document.getElementById('title').innerHTML = `Your Devices (${deviceCount})`;
+        }
+
+        // Fetch devices from Govee API
+        fetch('http://localhost:3000/devices')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Display devices on the webpage
+                displayDevices(data);
+            })
+            .catch(error => {
+                console.error('Error fetching devices:', error);
+            });
+    </script>
+</body>
+
+</html>
