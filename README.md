@@ -1,4 +1,4 @@
-# govee-control-center
+# Govee Control Center
 A powerfull web-based govee products control center based on the new govee api
 
 Pretty much in development ⚠️
