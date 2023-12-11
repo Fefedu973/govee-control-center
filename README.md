@@ -13,7 +13,7 @@ Some bugs and incompatibility are to be expected because the govee api is still 
 - LightScenes and DIY control (early stage bugs are to be expected, some devices are not supported by the govee api but may be later, for an obscure reason some effects dosen't apply)
 - Segment color control (works fine)
 - Music mode control (bugged for no auto color)
-- 
+  
 ## What is planned ?
 - Better UI (for now I focus on core functions but I plan to do a WAY better and beautiful UI/UX
 - Easier to use
