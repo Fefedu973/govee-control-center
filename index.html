@@ -24,7 +24,7 @@
         .device-box h2 {
             margin-top: 0;
         }
-        
+
 
         .on {
             background-color: rgb(217, 221, 0);
@@ -43,200 +43,334 @@
 
     <h1>Govee Control Center</h1>
     <h2 id="title">Your Devices</h1>
-    <div id="devices-container"></div>
+        <div id="devices-container"></div>
 
-    <script>
-        function hexToRgb(hex) {
-            // Remove the leading # if it exists
-            hex = hex.replace(/^#/, '');
+        <script>
+            function hexToRgb(hex) {
+                // Remove the leading # if it exists
+                hex = hex.replace(/^#/, '');
 
-            // Parse the hex values to RGB
-            const bigint = parseInt(hex, 16);
-            const r = (bigint >> 16) & 255;
-            const g = (bigint >> 8) & 255;
-            const b = bigint & 255;
+                // Parse the hex values to RGB
+                const bigint = parseInt(hex, 16);
+                const r = (bigint >> 16) & 255;
+                const g = (bigint >> 8) & 255;
+                const b = bigint & 255;
 
-            return { r, g, b };
-        }
+                return { r, g, b };
+            }
 
-        async function changeColor(device, selectedColor) {
-            const response = await fetch('http://localhost:3000/device/color', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
-                        color: selectedColor,
+            async function changeColor(device, selectedColor) {
+                const response = await fetch('http://localhost:3000/device/color', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            color: selectedColor,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data.capability.value;
-        }
+                const data = await response.json();
+                return data.capability.value;
+            }
 
-        async function toggleDevice(device, state) {
-            const response = await fetch('http://localhost:3000/device/toggle', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
-                        state: state,
+            async function toggleDevice(device, state) {
+                const response = await fetch('http://localhost:3000/device/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            state: state,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data.capability.value;
-        }
+                const data = await response.json();
+                return data.capability.value;
+            }
 
-        async function changeBrightness(device, brightness) {
-            brightness = parseInt(brightness);
-            const response = await fetch('http://localhost:3000/device/brightness', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
-                        brightness: brightness,
+            async function changeBrightness(device, brightness) {
+                brightness = parseInt(brightness);
+                const response = await fetch('http://localhost:3000/device/brightness', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            brightness: brightness,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data.capability.value;
-        }
+                const data = await response.json();
+                return data.capability.value;
+            }
 
-        async function fetchDeviceState(device) {
-            const response = await fetch('http://localhost:3000/device/state', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
+            async function fetchDeviceState(device) {
+                const response = await fetch('http://localhost:3000/device/state', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data;
-        }
+                const data = await response.json();
+                return data;
+            }
 
-        async function fetchLightScenes(device) {
-            const response = await fetch('http://localhost:3000/device/lightscenes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
+            async function fetchLightScenes(device) {
+                const response = await fetch('http://localhost:3000/device/lightscenes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data;
-        }
+                const data = await response.json();
+                return data;
+            }
 
-        async function fetchDIYScenes(device) {
-            const response = await fetch('http://localhost:3000/device/diyscenes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
+            async function fetchDIYScenes(device) {
+                const response = await fetch('http://localhost:3000/device/diyscenes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data;
-        }
+                const data = await response.json();
+                return data;
+            }
 
-        async function changeLightScene(device, scene, type) {
-            const response = await fetch('http://localhost:3000/device/dynamic-scene', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requestId: 'uuid',
-                    payload: {
-                        sku: device.sku,
-                        device: device.device,
-                        scene: scene,
-                        instance: type,
+            async function changeLightScene(device, scene, type) {
+                const response = await fetch('http://localhost:3000/device/dynamic-scene', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
                     },
-                }),
-            });
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            scene: scene,
+                            instance: type,
+                        },
+                    }),
+                });
 
-            const data = await response.json();
-            return data.capability.value;
-        }
+                const data = await response.json();
+                return data.capability.value;
+            }
 
-        async function displayDevices(data) {
-            const devicesContainer = document.getElementById('devices-container');
-            devicesContainer.innerHTML = '';
-            let deviceCount = 0;
+            async function changeSegmentColor(device, selectedColor, segment) {
+                const response = await fetch('http://localhost:3000/device/segment-color', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            segment: segment,
+                            color: selectedColor,
+                        },
+                    }),
+                });
 
-            for (const device of data) {
-                const deviceBox = document.createElement('div');
-                deviceBox.classList.add('device-box');
+                const data = await response.json();
+                return data.capability.value;
+            }
 
-                // Fetch device state
-                const status = await fetchDeviceState(device);
-                const onOffCapability = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.on_off');
-                const colorstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
-                const brightnessstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.range');
-                const containDynamicScene = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene');
+            async function toggleGradient(device, state) {
+                const response = await fetch('http://localhost:3000/device/gradient', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            state: state,
+                        },
+                    }),
+                });
 
-                let lightscenes = await fetchLightScenes(device);
-                let diyscenes = await fetchDIYScenes(device);
+                const data = await response.json();
+                return data.capability.value;
+            }
+
+            async function changeSegmentBrightness(device, brightness, segment) {
+                brightness = parseInt(brightness);
+                const response = await fetch('http://localhost:3000/device/segment-brightness', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            segment: segment,
+                            brightness: brightness,
+                        },
+                    }),
+                });
+
+                const data = await response.json();
+                return data.capability.value;
+            }
+
+            async function changeMusicMode(device, sensitivity, mode, autoColor, rgbValue) {
+                const response = await fetch('http://localhost:3000/device/music-mode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        requestId: 'uuid',
+                        payload: {
+                            sku: device.sku,
+                            device: device.device,
+                            sensitivity: sensitivity,
+                            mode: mode,
+                            autoColor: autoColor,
+                            rgbValue: rgbValue,
+                        },
+                    }),
+                });
+
+                const data = await response.json();
+                return data.capability.value;
+            }
+
+            async function displayDevices(data) {
+                const devicesContainer = document.getElementById('devices-container');
+                devicesContainer.innerHTML = '';
+                let deviceCount = 0;
+
+                for (const device of data) {
+                    const deviceBox = document.createElement('div');
+                    deviceBox.classList.add('device-box');
+
+                    // Fetch device state
+                    const status = await fetchDeviceState(device);
+                    const onOffCapability = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.on_off');
+                    const colorstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
+                    const brightnessstatus = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.range');
+                    const containDynamicScene = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene');
+                    const musicMode = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.music_setting');
+                    const segmentColorControl = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.segment_color_setting');
+                    const toggle = status.payload.capabilities.find(capability => capability.type === 'devices.capabilities.toggle');
+
+                    let lightscenes = await fetchLightScenes(device);
+                    let diyscenes = await fetchDIYScenes(device);
 
 
 
-                // Display device information
-                deviceBox.innerHTML = `
+                    // Display device information
+                    deviceBox.innerHTML = `
                     <h2>${device.deviceName}</h2>
                 `;
-                const colorButton = document.createElement('input');
-                if (onOffCapability) {
-                    // Display toggle button
-                    const toggleButton = document.createElement('button');
-                    toggleButton.innerHTML = 'Toggle';
-                    toggleButton.addEventListener('click', async () => {
-                        const newOnOffCapability = await toggleDevice(device, onOffCapability.state.value === 1 ? 0 : 1);
-                        if (colorstatus) {
-                            if (newOnOffCapability === 1) {
-                                let hex = colorstatus.state.value.toString(16);
-                                while (hex.length < 6) {
-                                    hex = '0' + hex;
+                    const colorButton = document.createElement('input');
+                    if (onOffCapability) {
+                        // Display toggle button
+                        const toggleButton = document.createElement('button');
+                        toggleButton.innerHTML = 'Toggle';
+                        toggleButton.addEventListener('click', async () => {
+                            const newOnOffCapability = await toggleDevice(device, onOffCapability.state.value === 1 ? 0 : 1);
+                            if (colorstatus) {
+                                if (newOnOffCapability === 1) {
+                                    let hex = colorstatus.state.value.toString(16);
+                                    while (hex.length < 6) {
+                                        hex = '0' + hex;
+                                    }
+                                    const hexColor = '#' + hex;
+                                    colorButton.value = hexColor;
+                                    deviceBox.classList.add('on');
+                                    deviceBox.classList.remove('off');
+                                } else {
+                                    deviceBox.classList.add('off');
+                                    deviceBox.classList.remove('on');
                                 }
-                                const hexColor = '#' + hex;
+                            }
+                            else {
+                                if (newOnOffCapability === 1) {
+                                    deviceBox.classList.add('on');
+                                    deviceBox.classList.remove('off');
+                                } else {
+                                    deviceBox.classList.add('off');
+                                    deviceBox.classList.remove('on');
+                                }
+                            }
+                            onOffCapability.state.value = newOnOffCapability;
+                        });
+                        deviceBox.appendChild(toggleButton);
+                    }
+
+                    //Add a button to open the color picker to change the color of the device if it has the color capability 'devices.capabilities.color_setting'
+                    const colorCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
+
+                    if (colorCapability) {
+
+                        colorButton.type = 'color';
+                        colorButton.innerHTML = 'Change Color';
+                        colorButton.addEventListener('input', async () => {
+
+
+                            let selectedColor = colorButton.value;
+                            let rgb = hexToRgb(selectedColor);
+                            let rgbValue = ((rgb.r & 0xFF) << 16) | ((rgb.g & 0xFF) << 8) | (rgb.b & 0xFF);
+
+
+                            const newColorCapability = await changeColor(device, rgbValue);
+                            colorstatus.state.value = newColorCapability;
+                            let hex = colorstatus.state.value.toString(16);
+                            while (hex.length < 6) {
+                                hex = '0' + hex;
+                            }
+                            const hexColor = '#' + hex;
+                            if (onOffCapability.state.value === 1) {
                                 colorButton.value = hexColor;
                                 deviceBox.classList.add('on');
                                 deviceBox.classList.remove('off');
@@ -244,182 +378,352 @@
                                 deviceBox.classList.add('off');
                                 deviceBox.classList.remove('on');
                             }
-                        }
-                        else {
-                            if (newOnOffCapability === 1) {
-                                deviceBox.classList.add('on');
-                                deviceBox.classList.remove('off');
-                            } else {
-                                deviceBox.classList.add('off');
-                                deviceBox.classList.remove('on');
-                            }
-                        }
-                        onOffCapability.state.value = newOnOffCapability;
-                    });
-                    deviceBox.appendChild(toggleButton);
-                }
+                        });
+                        deviceBox.appendChild(colorButton);
+                    }
 
-                //Add a button to open the color picker to change the color of the device if it has the color capability 'devices.capabilities.color_setting'
-                const colorCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.color_setting');
-
-                if (colorCapability) {
-
-                    colorButton.type = 'color';
-                    colorButton.innerHTML = 'Change Color';
-                    colorButton.addEventListener('input', async () => {
-
-
-                        let selectedColor = colorButton.value;
-                        let rgb = hexToRgb(selectedColor);
-                        let rgbValue = ((rgb.r & 0xFF) << 16) | ((rgb.g & 0xFF) << 8) | (rgb.b & 0xFF);
-
-
-                        const newColorCapability = await changeColor(device, rgbValue);
-                        colorstatus.state.value = newColorCapability;
+                    if (colorstatus) {
                         let hex = colorstatus.state.value.toString(16);
                         while (hex.length < 6) {
                             hex = '0' + hex;
                         }
                         const hexColor = '#' + hex;
+
                         if (onOffCapability.state.value === 1) {
                             colorButton.value = hexColor;
                             deviceBox.classList.add('on');
                             deviceBox.classList.remove('off');
+
                         } else {
+                            colorButton.value = hexColor;
                             deviceBox.classList.add('off');
                             deviceBox.classList.remove('on');
                         }
-                    });
-                    deviceBox.appendChild(colorButton);
-                }
-
-                if (colorstatus) {
-                    let hex = colorstatus.state.value.toString(16);
-                    while (hex.length < 6) {
-                        hex = '0' + hex;
                     }
-                    const hexColor = '#' + hex;
-
-                    if (onOffCapability.state.value === 1) {
-                        colorButton.value = hexColor;
-                        deviceBox.classList.add('on');
-                        deviceBox.classList.remove('off');
-
-                    } else {
-                        colorButton.value = hexColor;
-                        deviceBox.classList.add('off');
-                        deviceBox.classList.remove('on');
-                    }
-                }
-                else {
-                    // Update deviceBox color based on state
-                    if (onOffCapability && onOffCapability.state.value === 1) {
-                        deviceBox.classList.add('on');
-                    } else {
-                        deviceBox.classList.add('off');
-                    }
-                }
-
-
-
-                //add a brightness slider if the device has the brightness capability 'devices.capabilities.range'
-                const brightnessCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.range');
-                if (brightnessCapability) {
-                    const brightnessSlider = document.createElement('input');
-                    brightnessSlider.type = 'range';
-                    brightnessSlider.min = 1;
-                    brightnessSlider.max = 100;
-                    brightnessSlider.step = 1;
-                    brightnessSlider.value = brightnessstatus.state.value;
-                    brightnessSlider.addEventListener('mouseup', async () => {
-                        const newBrightnessCapability = await changeBrightness(device, brightnessSlider.value);
-                    });
-                    deviceBox.appendChild(brightnessSlider);
-                }
-
-                let scenes = [];
-                let lightscenespresent = false;
-                scenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
-
-                //i want to chack if the device has the field parameters in the lightscenes payload inside the capabilities array scene_color_setting becasuse when the device dont have light scenes there is not just a blank array in parameters.option but the field parameters is not there at all
-
-                if (lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters !== undefined) {
-                    lightscenes = lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters.options;
-                    diyscenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
-                    scenes = lightscenes.concat(diyscenes);
-                    lightscenespresent = true;
-                }
-
-
-
-
-                if (scenes.length !== 0) {
-
-
-
-                    //if the device has the capability 'devices.capabilities.dynamic_scene' add a button to change the light scene
-
-                    if (containDynamicScene) {
-                        const dynamicSceneButton = document.createElement('select');
-
-
-                        //add a default option labeled 'Select a scene' to the dropdown and ignore it if it is selected
-                        const defaultOption = document.createElement('option');
-                        defaultOption.value = 'default';
-                        defaultOption.innerHTML = 'Select a scene';
-                        defaultOption.selected = true;
-                        dynamicSceneButton.appendChild(defaultOption);
-
-
-                        for (scene of scenes) {
-                            const option = document.createElement('option');
-                            option.value = scene.value;
-                            option.innerHTML = scene.name;
-                            dynamicSceneButton.appendChild(option);
+                    else {
+                        // Update deviceBox color based on state
+                        if (onOffCapability && onOffCapability.state.value === 1) {
+                            deviceBox.classList.add('on');
+                        } else {
+                            deviceBox.classList.add('off');
                         }
-                        dynamicSceneButton.addEventListener('change', async () => {
-                            //we want to know if the scene is a light scene or a diy scene but the only way to know is to check if the scene is in the lightscenes array or the diyscenes array
-                            if (dynamicSceneButton.value === 'default') {
-                                return;
+                    }
+
+
+
+                    //add a brightness slider if the device has the brightness capability 'devices.capabilities.range'
+                    const brightnessCapability = device.capabilities.find(capability => capability.type === 'devices.capabilities.range');
+                    if (brightnessCapability) {
+                        const brightnessSlider = document.createElement('input');
+                        brightnessSlider.type = 'range';
+                        brightnessSlider.min = 1;
+                        brightnessSlider.max = 100;
+                        brightnessSlider.step = 1;
+                        brightnessSlider.value = brightnessstatus.state.value;
+                        brightnessSlider.addEventListener('mouseup', async () => {
+                            const newBrightnessCapability = await changeBrightness(device, brightnessSlider.value);
+                        });
+                        deviceBox.appendChild(brightnessSlider);
+                    }
+
+                    let scenes = [];
+                    let lightscenespresent = false;
+                    scenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
+
+                    //i want to chack if the device has the field parameters in the lightscenes payload inside the capabilities array scene_color_setting becasuse when the device dont have light scenes there is not just a blank array in parameters.option but the field parameters is not there at all
+
+                    if (lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters !== undefined) {
+                        lightscenes = lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters.options;
+                        diyscenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
+                        scenes = lightscenes.concat(diyscenes);
+                        lightscenespresent = true;
+                    }
+
+
+
+
+                    if (scenes.length !== 0) {
+
+
+
+                        //if the device has the capability 'devices.capabilities.dynamic_scene' add a button to change the light scene
+
+                        if (containDynamicScene) {
+                            const dynamicSceneButton = document.createElement('select');
+
+
+                            //add a default option labeled 'Select a scene' to the dropdown and ignore it if it is selected
+                            const defaultOption = document.createElement('option');
+                            defaultOption.value = 'default';
+                            defaultOption.innerHTML = 'Select a scene';
+                            defaultOption.selected = true;
+                            dynamicSceneButton.appendChild(defaultOption);
+
+
+                            for (scene of scenes) {
+                                const option = document.createElement('option');
+                                option.value = scene.value;
+                                option.innerHTML = scene.name;
+                                dynamicSceneButton.appendChild(option);
                             }
-                            let scenevalue = parseInt(dynamicSceneButton.value);
-                            let type = 'lightScene';
-                            if (lightscenespresent) {
-                                if (lightscenes.find(scene => scene.value === scenevalue) === undefined) {
+                            dynamicSceneButton.addEventListener('change', async () => {
+                                //we want to know if the scene is a light scene or a diy scene but the only way to know is to check if the scene is in the lightscenes array or the diyscenes array
+                                if (dynamicSceneButton.value === 'default') {
+                                    return;
+                                }
+                                let scenevalue = parseInt(dynamicSceneButton.value);
+                                let type = 'lightScene';
+                                if (lightscenespresent) {
+                                    if (lightscenes.find(scene => scene.value === scenevalue) === undefined) {
+                                        type = 'diyScene';
+                                    }
+                                }
+                                else {
                                     type = 'diyScene';
                                 }
-                            }
-                            else {
-                                type = 'diyScene';
-                            }
-                            const response = await changeLightScene(device, scenevalue, type);
-                        });
-                        deviceBox.appendChild(dynamicSceneButton);
+                                const response = await changeLightScene(device, scenevalue, type);
+                            });
+                            deviceBox.appendChild(dynamicSceneButton);
+                        }
                     }
-                }
 
-                devicesContainer.appendChild(deviceBox);
-                deviceCount++;
+                    if (musicMode) {
+                        const musicModeButton = document.createElement('button');
+                        musicModeButton.innerHTML = 'Music Mode';
+                        //open a dialog box with a slider to change the sensitivity of the music mode, a list of the different music modes, an auto color checkbox, and if the checkbox is unchecked a color picker
+                        musicModeButton.addEventListener('click', async () => {
+                            let sensitivity = 100;
+                            let mode = 'default';
+                            let autoColor = 1;
+                            let rgbValue = 0;
+                            //add the dialog box
+                            const dialog = document.createElement('dialog');
+                            //add title to the dialog box
+                            const dialogTitle = document.createElement('h2');
+                            dialogTitle.innerHTML = 'Music Mode';
+                            dialog.appendChild(dialogTitle);
+                            //add slider to the dialog box
+                            const slider = document.createElement('input');
+                            slider.type = 'range';
+                            slider.min = 0;
+                            slider.max = 100;
+                            slider.step = 1;
+                            slider.value = 100;
+                            slider.addEventListener('mouseup', async () => {
+                                sensitivity = slider.value;
+                                sensitivity = parseInt(sensitivity);
+                            });
+                            dialog.appendChild(slider);
+                            //add a list of the different music modes to the dialog box
+                            const musicModeList = document.createElement('select');
+                            const modes = device.capabilities.find(capability => capability.type === 'devices.capabilities.music_setting').parameters.fields.find(setting => setting.fieldName === 'musicMode').options
+                            const defaultoption = document.createElement('option');
+                            defaultoption.value = 'default';
+                            defaultoption.innerHTML = 'Choose a music mode'
+                            defaultoption.selected = true;
+                            musicModeList.appendChild(defaultoption)
+                            for (mode of modes) {
+                                const option = document.createElement('option');
+                                option.value = mode.value;
+                                option.innerHTML = mode.name;
+                                musicModeList.appendChild(option);
+                            }
+                            musicModeList.addEventListener('change', async () => {
+                                if (musicModeList.value === 'default') {
+                                    return;
+                                }
+                                mode = musicModeList.value
+                                mode = parseInt(mode)
+                            });
+                            dialog.appendChild(musicModeList);
+                            //add an auto color checkbox to the dialog box
+                            const autoColorCheckbox = document.createElement('input');
+                            autoColorCheckbox.type = 'checkbox';
+                            autoColorCheckbox.checked = 1;
+                            autoColorCheckbox.addEventListener('change', async () => {
+                                const colorPicker = document.createElement('input');
+                                if (autoColorCheckbox.checked == 0) {
+                                    //add a color picker to the dialog box
+                                    colorPicker.type = 'color';
+                                    colorPicker.value = '#ffffff';
+                                    colorPicker.id = 'colorPickermusic';
+                                    colorPicker.addEventListener('input', async () => {
+                                        let selectedColor = colorPicker.value;
+                                        let rgb = hexToRgb(selectedColor);
+                                        rgbValue = ((rgb.r & 0xFF) << 16) | ((rgb.g & 0xFF) << 8) | (rgb.b & 0xFF);
+                                    });
+                                    dialog.appendChild(colorPicker);
+                                }
+                                else {
+                                    //remove the color picker from the dialog box if the checkbox is checked
+                                    const colorPicker = document.getElementById('colorPickermusic');
+                                    colorPicker.remove();
+                                }
+
+                                autoColor = autoColorCheckbox.checked;
+                                if (autoColor === false) {
+                                    autoColor = 0;
+                                }
+                                else {
+                                    autoColor = 1;
+                                }
+                            });
+                            dialog.appendChild(autoColorCheckbox);
+                            //add a close button to the dialog box
+                            const closeButton = document.createElement('button');
+                            closeButton.innerHTML = 'Close';
+                            closeButton.addEventListener('click', () => {
+                                dialog.close();
+                            });
+                            dialog.appendChild(closeButton);
+                            //add an apply button to the dialog box that will take all the values from the dialog box and apply them to the device
+                            const applyButton = document.createElement('button');
+                            applyButton.innerHTML = 'Apply';
+                            applyButton.addEventListener('click', async() => {
+                                //call the musicControl function with the values from the dialog box
+
+                                if (musicModeList.value === 'default') {
+                                    return;
+                                }
+                                const musicControl = await changeMusicMode(device, sensitivity, mode, autoColor, rgbValue);
+
+                            });
+                            dialog.appendChild(applyButton);
+                            document.body.appendChild(dialog);
+                            dialog.showModal();
+                        });
+
+                        deviceBox.appendChild(musicModeButton);
+                    }
+
+
+                    if (segmentColorControl) {
+                        const segmentColorControlButton = document.createElement('button');
+                        segmentColorControlButton.innerHTML = 'Segment Color Control';
+                        segmentColorControlButton.addEventListener('click', async () => {
+                            //add the dialog box
+                            const dialog = document.createElement('dialog');
+                            //add title to the dialog box
+                            const dialogTitle = document.createElement('h2');
+                            dialogTitle.innerHTML = 'Segment Color Control';
+                            dialog.appendChild(dialogTitle);
+                            //add 15 checkboxes with 15 color pickers to the dialog box and an apply button
+                            for (let i = 0; i < 15; i++) {
+                                const colorPicker = document.createElement('input');
+                                colorPicker.type = 'color';
+                                colorPicker.value = '#ffffff';
+                                colorPicker.addEventListener('input', async () => {
+                                    let selectedColor = colorPicker.value;
+                                    let rgb = hexToRgb(selectedColor);
+                                    let rgbValue = ((rgb.r & 0xFF) << 16) | ((rgb.g & 0xFF) << 8) | (rgb.b & 0xFF);
+                                    let segment = [i]
+                                    const newSegmentColorCapability = await changeSegmentColor(device, rgbValue, segment);
+                                });
+                                dialog.appendChild(colorPicker);
+                            }
+                            //add a gradient checkbox to the dialog box
+                            if (toggle) {
+                                const gradientCheckbox = document.createElement('input');
+                                gradientCheckbox.type = 'checkbox';
+                                gradientCheckbox.checked = 1;
+                                gradientCheckbox.addEventListener('change', async () => {
+                                    state = 1
+                                    if (gradientCheckbox.checked === false) {
+                                        state = 0
+                                    }
+                                    const gradientCapability = await toggleGradient(device, state);
+                                });
+                                dialog.appendChild(gradientCheckbox);
+                            }
+
+
+
+                            //Add 15 range sliders to the dialog box
+                            for (let i = 0; i < 15; i++) {
+                                const rangeSlider = document.createElement('input');
+                                rangeSlider.type = 'range';
+                                rangeSlider.min = 1;
+                                rangeSlider.max = 100;
+                                rangeSlider.step = 1;
+                                rangeSlider.value = 100;
+                                rangeSlider.addEventListener('mouseup', async () => {
+                                    let segment = [i]
+                                    let brightness = rangeSlider.value;
+                                    brightness = parseInt(brightness);
+                                    const newSegmentBrightnessCapability = await changeSegmentBrightness(device, brightness, segment);
+                                });
+                                dialog.appendChild(rangeSlider);
+
+                            };
+                            //add a close button to the dialog box
+                            const closeButton = document.createElement('button');
+                            closeButton.innerHTML = 'Close';
+                            closeButton.addEventListener('click', () => {
+                                dialog.close();
+                            });
+                            dialog.appendChild(closeButton);
+                            document.body.appendChild(dialog);
+                            dialog.showModal();
+
+                        });
+
+
+                        deviceBox.appendChild(segmentColorControlButton);
+                    }
+
+
+                    // add a more settings button to the device box
+                    const moreSettingsButton = document.createElement('button');
+                    moreSettingsButton.innerHTML = 'More Infos';
+                    moreSettingsButton.addEventListener('click', async () => {
+                        //add the dialog box
+                        const dialog = document.createElement('dialog');
+                        //add text to the dialog box
+                        const dialogText = document.createElement('p');
+                        dialogText.innerHTML = `Device Name: ${device.deviceName} <br> Device ID: ${device.device} <br> Device SKU: ${device.sku} <ul>${device.capabilities.map(capability => `<li>Type: ${capability.type}, Instance: ${capability.instance}</li>`).join('')}</ul><br> <pre>${JSON.stringify(status.payload, null, 2)}</pre>`;
+                        dialog.appendChild(dialogText);
+                        //add a close button to the dialog box
+                        const closeButton = document.createElement('button');
+                        closeButton.innerHTML = 'Close';
+                        closeButton.addEventListener('click', () => {
+                            dialog.close();
+                        });
+                        dialog.appendChild(closeButton);
+                        //add a refresh device state button to the dialog box
+                        const refreshButton = document.createElement('button');
+                        refreshButton.innerHTML = 'Refresh Device State';
+                        refreshButton.addEventListener('click', async () => {
+                            const newStatus = await fetchDeviceState(device);
+                            dialogText.innerHTML = `Device Name: ${device.deviceName} <br> Device ID: ${device.device} <br> Device SKU: ${device.sku} <ul>${device.capabilities.map(capability => `<li>Type: ${capability.type}, Instance: ${capability.instance}</li>`).join('')}</ul><br> <pre>${JSON.stringify(newStatus.payload, null, 2)}</pre>`;
+                        });
+                        dialog.appendChild(refreshButton);
+                        document.body.appendChild(dialog);
+                        dialog.showModal();
+                    });
+                    deviceBox.appendChild(moreSettingsButton);
+
+                    devicesContainer.appendChild(deviceBox);
+                    deviceCount++;
+                }
+                document.getElementById('title').innerHTML = `Your Devices (${deviceCount})`;
             }
-            document.getElementById('title').innerHTML = `Your Devices (${deviceCount})`;
-        }
 
-        // Fetch devices from Govee API
-        fetch('http://localhost:3000/devices')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Display devices on the webpage
-                displayDevices(data);
-            })
-            .catch(error => {
-                console.error('Error fetching devices:', error);
-            });
-    </script>
+            // Fetch devices from Govee API
+            fetch('http://localhost:3000/devices')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Display devices on the webpage
+                    displayDevices(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching devices:', error);
+                });
+        </script>
 </body>
 
 </html>
