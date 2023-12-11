@@ -8,15 +8,15 @@ Some bugs and incompatibility are to be expected because the govee api is still 
 ## What is working right now ?
 - Get the list of all your devices as well as their state (on/off) and their color. (some devices are not supported by the govee api but may be later)
 - Toggle the device state (on/off) ✅ ALL DEVICES
-- Change device color (No segment lightning for now, some devices are not supported by the govee api but may be later)
-- Brightness control (some devices are not supported by the govee api but may be later)
-- LightScenes and DIY control (early stage bugs are to be expected, some devices are not supported by the govee api but may be later)
-
+- Change device color (some devices are not supported by the govee api but may be later)
+- Brightness control (some devices are not working correctly with the govee api but may be later)
+- LightScenes and DIY control (early stage bugs are to be expected, some devices are not supported by the govee api but may be later, for an obscure reason some effects dosen't apply)
+- Segment color control (works fine)
+- Music mode control (bugged for no auto color)
+- 
 ## What is planned ?
 - Better UI (for now I focus on core functions but I plan to do a WAY better and beautiful UI/UX
 - Easier to use
-- Segment color control
-- Music mode control
 - Integrations with other services (google assistant, alexa, home assistant)
 - All toggle (on/off, All same color, All same scene (to create ambience)
 - More devices support (for now I only support lights products from govee beacause I don't have the other connected products from govee so it is verry hard to develop something without being able to test it)
