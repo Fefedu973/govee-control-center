@@ -3,7 +3,7 @@ const app = express();
 import fetch from 'node-fetch';
 import cors from 'cors';
 
-const apiKey = "ENTER YOUR API KEY HERE";
+const apiKey = "Enter your API key here";
 app.use(cors());
 app.use(express.json());
 
@@ -249,9 +249,159 @@ app.post("/device/dynamic-scene", async (req, res) => {
     }
 });
 
-//TODO:
-// Segment color control
-// Music control
+// Route for controlling segment color control
+
+app.post("/device/segment-color", async (req, res) => {
+    try {
+        const { sku, device, segment, color } = req.body.payload;
+        const response = await fetch('https://openapi.api.govee.com/router/api/v1/device/control', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Govee-API-Key': apiKey
+            },
+            body: JSON.stringify({
+                requestId: 'uuid',
+                payload: {
+                    sku,
+                    device,
+                    capability: {
+                        type: 'devices.capabilities.segment_color_setting',
+                        instance: 'segmentedColorRgb', // 'segment1 or segment2 or segment3'
+                        value: {
+                            segment: segment,
+                            rgb: color
+                        }
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        res.json(data);
+        console.log(data);
+
+    }
+    catch (error) {
+        console.error('Error querying device state:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+
+    }
+});
+
+// Route for toggling gradient
+
+app.post("/device/gradient", async (req, res) => {
+    try {
+        const { sku, device, state } = req.body.payload;
+        const response = await fetch('https://openapi.api.govee.com/router/api/v1/device/control', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Govee-API-Key': apiKey
+            },
+            body: JSON.stringify({
+                requestId: 'uuid',
+                payload: {
+                    sku,
+                    device,
+                    capability: {
+                        type: 'devices.capabilities.toggle',
+                        instance: 'gradientToggle',
+                        value: state
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        res.json(data);
+        console.log(data);
+
+    }
+    catch (error) {
+        console.error('Error querying device state:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+
+    }
+});
+
+// Route for changing segment brightness
+
+app.post("/device/segment-brightness", async (req, res) => {
+    try {
+        const { sku, device, segment, brightness } = req.body.payload;
+        const response = await fetch('https://openapi.api.govee.com/router/api/v1/device/control', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Govee-API-Key': apiKey
+            },
+            body: JSON.stringify({
+                requestId: 'uuid',
+                payload: {
+                    sku,
+                    device,
+                    capability: {
+                        type: 'devices.capabilities.segment_color_setting',
+                        instance: 'segmentedBrightness', // 'segment1 or segment2 or segment3'
+                        value: {
+                            segment: segment,
+                            brightness: brightness
+                        }
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        res.json(data);
+        console.log(data);
+    }
+    catch (error) {
+        console.error('Error querying device state:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+
+    }
+});
+
+// control music mode
+
+app.post("/device/music-mode", async (req, res) => {
+    try {
+        const { sku, device, sensitivity, mode, autoColor, rgbValue } = req.body.payload;
+        const response = await fetch('https://openapi.api.govee.com/router/api/v1/device/control', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Govee-API-Key': apiKey
+            },
+            body: JSON.stringify({
+                requestId: 'uuid',
+                payload: {
+                    sku,
+                    device,
+                    capability: {
+                        type: 'devices.capabilities.music_setting',
+                        instance: 'musicMode', // 'segment1 or segment2 or segment3'
+                        value: {
+                            musicMode: mode,
+                            sensitivity: sensitivity,
+                            autoColor: autoColor,
+                            rgb: rgbValue
+                        }
+                    }
+                }
+            })
+        });
+        const data = await response.json();
+        res.json(data);
+        console.log(data);
+    }
+    catch (error) {
+        console.error('Error querying device state:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+
+    }
+}
+);
 
 app.listen(3000, () => {
     console.log('server is running at port 3000');
