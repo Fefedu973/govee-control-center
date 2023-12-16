@@ -15,6 +15,7 @@ Some bugs and incompatibility are to be expected because the govee api is still 
 - Music mode control (bugged for no auto color)
   
 ## What is planned ?
+- Tap to run control integration trough Google assistant/Alexa integration 
 - Better UI (for now I focus on core functions but I plan to do a WAY better and beautiful UI/UX
 - Easier to use
 - Integrations with other services (google assistant, alexa, home assistant)
