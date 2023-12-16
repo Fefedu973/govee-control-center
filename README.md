@@ -15,6 +15,10 @@ Some bugs and incompatibility are to be expected because the govee api is still 
 - Music mode control (bugged for no auto color)
   
 ## What is planned ?
+- API lan integration
+- signal rgb integration
+- dream view control
+- ble control 
 - Tap to run control integration trough Google assistant/Alexa integration 
 - Better UI (for now I focus on core functions but I plan to do a WAY better and beautiful UI/UX
 - Easier to use
