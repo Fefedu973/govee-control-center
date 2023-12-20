@@ -428,13 +428,13 @@
 
                     let scenes = [];
                     let lightscenespresent = false;
-                    scenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
+                    scenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene').parameters.options;
 
                     //i want to chack if the device has the field parameters in the lightscenes payload inside the capabilities array scene_color_setting becasuse when the device dont have light scenes there is not just a blank array in parameters.option but the field parameters is not there at all
 
-                    if (lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters !== undefined) {
-                        lightscenes = lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.scene_color_setting').parameters.options;
-                        diyscenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.diy_color_setting').parameters.options;
+                    if (lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene').parameters !== undefined) {
+                        lightscenes = lightscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene').parameters.options;
+                        diyscenes = diyscenes.payload.capabilities.find(capability => capability.type === 'devices.capabilities.dynamic_scene').parameters.options;
                         scenes = lightscenes.concat(diyscenes);
                         lightscenespresent = true;
                     }
@@ -718,6 +718,7 @@
                 })
                 .then(data => {
                     // Display devices on the webpage
+                    data = data.data
                     displayDevices(data);
                 })
                 .catch(error => {
