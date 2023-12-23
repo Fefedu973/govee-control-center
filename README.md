@@ -10,9 +10,10 @@ Some bugs and incompatibility are to be expected because the govee api is still 
 - Toggle the device state (on/off) ✅ ALL DEVICES
 - Change device color (some devices are not supported by the govee api but may be later)
 - Brightness control (some devices are not working correctly with the govee api but may be later)
-- LightScenes and DIY control (early stage bugs are to be expected, some devices are not supported by the govee api but may be later, for an obscure reason some effects dosen't apply)
-- Segment color control (works fine)
-- Music mode control (bugged for no auto color)
+- LightScenes and DIY control (Works pretty well, some devices are not supported by the govee api but may be later)
+- Segment color control (works fine but needs to be reworked)
+- Music mode control (sensibility and color control is not working because of the govee API bug)
+- Color Temperature control
   
 ## What is planned ?
 - API lan integration
