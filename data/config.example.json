@@ -4,6 +4,7 @@
   "bleSensors": [],
   "blePackets": [],
   "bleEvents": [],
+  "bleDebug": false,
   "scenes": [],
   "cloudApiKey": "",
   "retryMode": false

@@ -304,6 +304,7 @@ function useGoveeState({ cloudEnabled = false } = {}) {
   const [bleStatus, setBleStatus] = React.useState({ available: false, enabled: false, scanning: false, error: null });
   const [events, setEvents] = React.useState([]);
   const [blePackets, setBlePackets] = React.useState([]);
+  const [bleRaw, setBleRaw] = React.useState([]);
   const [scenes, setScenes] = React.useState([]);
   const [lastEvent, setLastEvent] = React.useState('Connexion au backend…');
 
@@ -325,6 +326,7 @@ function useGoveeState({ cloudEnabled = false } = {}) {
       setBleStatus(blePayload.status || {});
       setEvents(blePayload.events || []);
       setBlePackets(blePayload.packets || []);
+      setBleRaw(blePayload.rawAdvertisements || []);
     }
   }, [cloudEnabled]);
 
@@ -335,6 +337,11 @@ function useGoveeState({ cloudEnabled = false } = {}) {
     source.addEventListener('settings', (event) => setSettings(JSON.parse(event.data).settings || { retryMode: false }));
     source.addEventListener('ble-sensors', (event) => setBleSensors(JSON.parse(event.data).sensors || []));
     source.addEventListener('ble-status', (event) => setBleStatus(JSON.parse(event.data).status || {}));
+    source.addEventListener('ble-raw-history', (event) => setBleRaw(JSON.parse(event.data).rawAdvertisements || []));
+    source.addEventListener('ble-raw', (event) => {
+      const payload = JSON.parse(event.data);
+      setBleRaw((previous) => [payload, ...previous.filter((entry) => entry.fingerprint !== payload.fingerprint || entry.id !== payload.id)].slice(0, 160));
+    });
     source.addEventListener('ble-event', (event) => {
       const payload = JSON.parse(event.data);
       setEvents((previous) => [payload, ...previous].slice(0, 80));
@@ -379,6 +386,8 @@ function useGoveeState({ cloudEnabled = false } = {}) {
     setEvents,
     blePackets,
     setBlePackets,
+    bleRaw,
+    setBleRaw,
     scenes,
     setScenes,
     lastEvent,
@@ -1085,9 +1094,10 @@ function CloudFallbackPanel({ enabled, onEnabledChange, cloudStatus, cloudDevice
   );
 }
 
-function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [] }) {
+function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [], bleRaw = [], onDebugToggle }) {
   const [selected, setSelected] = React.useState('');
   const [action, setAction] = React.useState(DEFAULT_ACTION);
+  const [selectedRawId, setSelectedRawId] = React.useState('');
   const [message, setMessage] = React.useState('');
 
   React.useEffect(() => {
@@ -1100,10 +1110,16 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [] }) {
 
   const selectedSensor = bleSensors.find((sensor) => sensor.id === selected);
   const packetGroups = React.useMemo(() => groupBlePackets(blePackets, events), [blePackets, events]);
+  const rawAdvertisements = Array.isArray(bleRaw) ? bleRaw : [];
+  const selectedRaw = rawAdvertisements.find((entry) => entry.id === selectedRawId) || rawAdvertisements[0] || null;
 
   React.useEffect(() => {
     if (selectedSensor?.action) setAction({ ...DEFAULT_ACTION, ...selectedSensor.action });
   }, [selectedSensor?.id]);
+
+  React.useEffect(() => {
+    if (!selectedRawId && rawAdvertisements[0]) setSelectedRawId(rawAdvertisements[0].id);
+  }, [rawAdvertisements, selectedRawId]);
 
   async function saveAction() {
     if (!selectedSensor) return;
@@ -1132,13 +1148,90 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [] }) {
           <div>
             <CardTitle className="flex items-center gap-2"><Bluetooth className="size-5" /> H5122 / Bluetooth</CardTitle>
             <CardDescription>
-              {bleStatus.available ? `${bleSensors.length} capteur(s) BLE détecté(s). Les doublons sont filtrés par event id H512x.` : 'BLE indisponible côté serveur'}
+              {bleStatus.available
+                ? `${bleSensors.length} capteur(s) BLE détecté(s). ${rawAdvertisements.length} annonce(s) brutes en mémoire.`
+                : 'BLE indisponible côté serveur'}
             </CardDescription>
           </div>
           <Badge variant={bleStatus.scanning ? 'success' : 'secondary'}>{bleStatus.scanning ? 'scan actif' : 'scan arrêté'}</Badge>
         </div>
       </CardHeader>
       <CardContent className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+        <div className="space-y-3 rounded-xl border p-4 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="font-medium">Diagnostic BLE</h3>
+              <p className="text-muted-foreground text-sm">
+                État {bleStatus.state || 'inconnu'} · {bleStatus.enabled ? 'activé' : 'désactivé'} · {bleStatus.scanning ? 'scan actif' : 'scan arrêté'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label htmlFor="ble-debug">Debug raw</Label>
+              <Switch
+                id="ble-debug"
+                checked={Boolean(bleStatus.debug)}
+                disabled={!bleStatus.available || !onDebugToggle}
+                onCheckedChange={(checked) => onDebugToggle?.(checked)}
+              />
+            </div>
+          </div>
+          {bleStatus.error ? <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">{bleStatus.error}</p> : null}
+          <div className="grid gap-3 text-sm md:grid-cols-4">
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-muted-foreground text-xs">Disponible</p>
+              <p className="font-medium">{bleStatus.available ? 'oui' : 'non'}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-muted-foreground text-xs">Scan Noble</p>
+              <p className="font-medium">{bleStatus.scanning ? 'actif' : 'arrêté'}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-muted-foreground text-xs">Annonces raw</p>
+              <p className="font-medium">{bleStatus.rawCount ?? rawAdvertisements.length}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <p className="text-muted-foreground text-xs">Dernière raw</p>
+              <p className="font-medium">{formatTime(rawAdvertisements[0]?.lastAt || rawAdvertisements[0]?.at)}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
+            <div className="max-h-72 space-y-2 overflow-auto pr-1">
+              {rawAdvertisements.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Aucune annonce brute reçue par l’app.</p>
+              ) : rawAdvertisements.map((raw) => (
+                <button
+                  key={raw.id}
+                  type="button"
+                  onClick={() => setSelectedRawId(raw.id)}
+                  className={cn('w-full rounded-lg border p-3 text-left text-xs transition hover:bg-accent', selectedRaw?.id === raw.id && 'border-primary bg-primary/5')}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium text-foreground">{raw.localName || raw.address || 'Annonce BLE'}</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Badge variant={raw.parsed ? 'success' : raw.interesting ? 'secondary' : 'outline'}>{raw.parsed ? 'décodée' : raw.interesting ? 'candidate' : 'raw'}</Badge>
+                      {raw.seenCount > 1 ? <Badge variant="outline">x{raw.seenCount}</Badge> : null}
+                    </div>
+                  </div>
+                  <div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+                    <span>{raw.address || 'adresse inconnue'}</span>
+                    <span>RSSI {raw.rssi ?? '—'} · {formatTime(raw.lastAt || raw.at)}</span>
+                    <span className="sm:col-span-2 break-all">{raw.reason || 'pas de raison'}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="rounded-lg border bg-background/40 p-3">
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Annonce sélectionnée</p>
+              {selectedRaw ? (
+                <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all text-[11px]">{formatJson(selectedRaw)}</pre>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune annonce.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-3">
           {bleSensors.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
@@ -1286,6 +1379,8 @@ function App() {
     setEvents,
     blePackets,
     setBlePackets,
+    bleRaw,
+    setBleRaw,
     scenes,
     setScenes,
     lastEvent,
@@ -1309,6 +1404,7 @@ function App() {
       if (payload.sensors) setBleSensors(payload.sensors);
       if (payload.events) setEvents(payload.events);
       if (payload.packets) setBlePackets(payload.packets);
+      if (payload.rawAdvertisements) setBleRaw(payload.rawAdvertisements);
       if (payload.scenes) setScenes(payload.scenes);
       if (payload.settings) setSettings(payload.settings);
       if (payload.status?.configured !== undefined) setCloudStatus(payload.status);
@@ -1324,7 +1420,7 @@ function App() {
         return next;
       });
     }
-  }, [refresh, setBlePackets, setBleSensors, setBleStatus, setCloudDevices, setCloudStatus, setDevices, setEvents, setScenes, setSettings]);
+  }, [refresh, setBlePackets, setBleRaw, setBleSensors, setBleStatus, setCloudDevices, setCloudStatus, setDevices, setEvents, setScenes, setSettings]);
 
   async function scan() {
     await command('scan', '/api/scan', { ips: [] });
@@ -1339,6 +1435,10 @@ function App() {
 
   async function toggleBle(enabled) {
     await command('ble', '/api/ble/enable', { enabled });
+  }
+
+  async function toggleBleDebug(enabled) {
+    await command('ble:debug', '/api/ble/debug', { enabled });
   }
 
   async function toggleRetryMode(enabled) {
@@ -1360,7 +1460,15 @@ function App() {
       <GlobalActionsCard devices={devices} command={command} settings={settings} onRetryModeChange={toggleRetryMode} />
       <ScenesCard scenes={scenes} setScenes={setScenes} devices={devices} command={command} />
       <CloudFallbackPanel enabled={cloudEnabled} onEnabledChange={setCloudEnabled} cloudStatus={cloudStatus} cloudDevices={cloudDevices} command={command} refresh={refresh} onStatusChange={setCloudStatus} />
-      <BlePanel bleSensors={bleSensors} bleStatus={bleStatus} devices={devices} events={events} blePackets={blePackets} />
+      <BlePanel
+        bleSensors={bleSensors}
+        bleStatus={bleStatus}
+        devices={devices}
+        events={events}
+        blePackets={blePackets}
+        bleRaw={bleRaw}
+        onDebugToggle={toggleBleDebug}
+      />
 
       <section className="grid gap-4 lg:grid-cols-2">
         {devices.length === 0 ? (

@@ -32,6 +32,8 @@ const DATA_DIR = path.join(__dirname, 'data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const BLE_PACKET_HISTORY_LIMIT = 240;
 const BLE_EVENT_HISTORY_LIMIT = 80;
+const BLE_RAW_HISTORY_LIMIT = 160;
+const BLE_RAW_DUPLICATE_WINDOW_MS = Number(process.env.GOVEE_BLE_RAW_DUPLICATE_WINDOW_MS || 1_000);
 const RETRY_VERIFY_DELAY_MS = Number(process.env.GOVEE_RETRY_VERIFY_DELAY_MS || 1_600);
 const RETRY_STATUS_WAIT_MS = Number(process.env.GOVEE_RETRY_STATUS_WAIT_MS || 700);
 const RETRY_MAX_ATTEMPTS = Number(process.env.GOVEE_RETRY_MAX_ATTEMPTS || 2);
@@ -43,6 +45,7 @@ function defaultConfig() {
     bleSensors: [],
     blePackets: [],
     bleEvents: [],
+    bleDebug: false,
     scenes: [],
     cloudApiKey: '',
     retryMode: false,
@@ -59,6 +62,7 @@ function normalizeConfig(config = {}) {
     bleSensors: Array.isArray(config.bleSensors) ? config.bleSensors : [],
     blePackets: Array.isArray(config.blePackets) ? config.blePackets : [],
     bleEvents: Array.isArray(config.bleEvents) ? config.bleEvents : [],
+    bleDebug: Boolean(config.bleDebug),
     scenes: Array.isArray(config.scenes) ? config.scenes : [],
     cloudApiKey: typeof config.cloudApiKey === 'string' ? config.cloudApiKey : '',
     retryMode: Boolean(config.retryMode),
@@ -347,6 +351,83 @@ function parseH512xAdvertisement({ address, localName = '', rssi = null, manufac
       battery,
     },
   };
+}
+
+function analyzeH512xCandidate({ localName = '', manufacturerData }) {
+  if (!Buffer.isBuffer(manufacturerData)) {
+    return { parsed: false, reason: 'missing manufacturer data' };
+  }
+
+  let data = manufacturerData;
+  const strippedIntelliRocks = data.length > 25 && data.includes(Buffer.from('INTELLI_ROCKS'));
+  if (strippedIntelliRocks) data = data.subarray(0, -25);
+
+  const base = {
+    parsed: false,
+    rawLength: manufacturerData.length,
+    length: data.length,
+    strippedIntelliRocks,
+  };
+
+  if (data.length !== 24) {
+    return { ...base, reason: `unsupported length ${data.length}, expected 24` };
+  }
+
+  const timeMs = data.subarray(2, 6);
+  const encrypted = data.subarray(6, 22);
+  const expectedCrc = data.readUInt16BE(22);
+  const calculatedCrc = calculateCrc(encrypted);
+  const eventId = timeMs.toString('hex');
+  const eventCounter = timeMs.readUInt32BE(0);
+
+  if (calculatedCrc !== expectedCrc) {
+    return {
+      ...base,
+      eventId,
+      eventCounter,
+      expectedCrc: expectedCrc.toString(16).padStart(4, '0'),
+      calculatedCrc: calculatedCrc.toString(16).padStart(4, '0'),
+      reason: 'crc mismatch',
+    };
+  }
+
+  let decrypted;
+  try {
+    decrypted = decryptGoveeH512x(timeMs, encrypted);
+  } catch (error) {
+    return { ...base, eventId, eventCounter, reason: `decrypt failed: ${error.message}` };
+  }
+
+  const modelId = decrypted[2];
+  let info = H512X_MODELS.get(modelId);
+  if (!info) {
+    const match = localName.match(/GV?(512[1-7]|5130)/i);
+    if (match) {
+      const model = `H${match[1]}`;
+      info = [...H512X_MODELS.values()].find((entry) => entry.model === model) || { model, type: 'button', buttons: 1 };
+    }
+  }
+
+  const decoded = {
+    ...base,
+    eventId,
+    eventCounter,
+    expectedCrc: expectedCrc.toString(16).padStart(4, '0'),
+    calculatedCrc: calculatedCrc.toString(16).padStart(4, '0'),
+    decrypted: decrypted.toString('hex'),
+    modelId,
+    model: info?.model || null,
+    type: info?.type || null,
+    buttonCount: info?.buttons ?? null,
+    battery: decrypted[4],
+    buttonNumber: decrypted[5],
+  };
+
+  if (!info) return { ...decoded, reason: `unsupported model id ${modelId}` };
+  if (info.model !== 'H5122' && !['H5125', 'H5126'].includes(info.model)) {
+    return { ...decoded, reason: `model ${info.model} ignored by button handler` };
+  }
+  return { ...decoded, parsed: true, reason: 'h512x button decoded' };
 }
 
 function getManufacturerCandidates(advertisement) {
@@ -1299,8 +1380,12 @@ class GoveeBleBridge extends EventEmitter {
     this.seenBleEvents = new Map();
     this.packets = [];
     this.events = [];
+    this.rawAdvertisements = [];
+    this.rawFingerprintAt = new Map();
+    this.rawFingerprintCounts = new Map();
     this.persistTimer = null;
     this.config = defaultConfig();
+    this.debug = false;
   }
 
   async init() {
@@ -1308,6 +1393,7 @@ class GoveeBleBridge extends EventEmitter {
     this.actions = new Map(Object.entries(this.config.bleActions || {}));
     this.packets = this.config.blePackets.slice(0, BLE_PACKET_HISTORY_LIMIT);
     this.events = this.config.bleEvents.slice(0, BLE_EVENT_HISTORY_LIMIT);
+    this.debug = Boolean(this.config.bleDebug);
     this.sensors = new Map(
       this.config.bleSensors
         .filter((sensor) => sensor?.id)
@@ -1334,6 +1420,8 @@ class GoveeBleBridge extends EventEmitter {
       scanning: this.scanning,
       state: this.noble?.state || null,
       error: this.error,
+      debug: this.debug,
+      rawCount: this.rawAdvertisements.length,
     };
   }
 
@@ -1349,6 +1437,10 @@ class GoveeBleBridge extends EventEmitter {
     return [...this.events].sort((a, b) => String(b.at).localeCompare(String(a.at)));
   }
 
+  allRawAdvertisements() {
+    return [...this.rawAdvertisements].sort((a, b) => String(b.lastAt || b.at).localeCompare(String(a.lastAt || a.at)));
+  }
+
   async setEnabled(enabled) {
     if (!this.available || !this.noble) {
       const error = new Error(this.error || 'Bluetooth is not available on this server.');
@@ -1362,6 +1454,17 @@ class GoveeBleBridge extends EventEmitter {
     if (this.enabled) this.#startScanWhenPoweredOn();
     else this.#stopScan();
     this.emitStatus();
+  }
+
+  async setDebug(enabled) {
+    this.debug = Boolean(enabled);
+    const config = await updateConfig((currentConfig) => {
+      currentConfig.bleDebug = this.debug;
+      return currentConfig;
+    });
+    this.config = config;
+    this.emitStatus();
+    return this.status();
   }
 
   async setAction(sensorId, action) {
@@ -1459,6 +1562,7 @@ class GoveeBleBridge extends EventEmitter {
     const advertisement = peripheral.advertisement || {};
     const localName = advertisement.localName || advertisement.completeLocalName || '';
     const candidates = getManufacturerCandidates(advertisement);
+    const raw = this.#createRawAdvertisement(peripheral, address, localName, advertisement, candidates);
 
     for (const candidate of candidates) {
       const parsed = parseH512xAdvertisement({
@@ -1469,12 +1573,114 @@ class GoveeBleBridge extends EventEmitter {
       });
       if (!parsed) continue;
 
+      raw.parsed = true;
+      raw.reason = 'h512x button decoded';
+      raw.model = parsed.sensor.model;
+      raw.sensorId = parsed.sensor.id;
+      raw.event = parsed.event;
+      this.#rememberRawAdvertisement(raw, { force: true });
+
       const action = this.actions.get(parsed.sensor.id) || null;
       const sensor = { ...(this.sensors.get(parsed.sensor.id) || {}), ...parsed.sensor, action };
       this.sensors.set(sensor.id, sensor);
       this.emitSensors();
       this.#handleButtonEvent(sensor, parsed.event);
       return;
+    }
+
+    if (this.debug || raw.interesting) this.#rememberRawAdvertisement(raw);
+  }
+
+  #createRawAdvertisement(peripheral, address, localName, advertisement, candidates) {
+    const at = new Date().toISOString();
+    const manufacturerData = Buffer.isBuffer(advertisement.manufacturerData)
+      ? advertisement.manufacturerData.toString('hex')
+      : null;
+    const serviceData = Array.isArray(advertisement.serviceData)
+      ? advertisement.serviceData.map((entry) => ({
+        uuid: entry?.uuid || null,
+        length: Buffer.isBuffer(entry?.data) ? entry.data.length : 0,
+        hex: Buffer.isBuffer(entry?.data) ? entry.data.toString('hex') : '',
+      }))
+      : [];
+    const manufacturerCandidates = candidates.map((candidate, index) => {
+      const h512x = analyzeH512xCandidate({ localName, manufacturerData: candidate.data });
+      return {
+        index,
+        companyId: candidate.companyId,
+        length: Buffer.isBuffer(candidate.data) ? candidate.data.length : 0,
+        hex: Buffer.isBuffer(candidate.data) ? candidate.data.toString('hex') : '',
+        h512x,
+      };
+    });
+    const reasons = manufacturerCandidates.map((candidate) => candidate.h512x?.reason).filter(Boolean);
+    const nameLooksGovee = /govee|h51|gvh?51|intelli/i.test(localName);
+    const dataLooksH512x = manufacturerCandidates.some((candidate) => (
+      candidate.h512x?.parsed
+      || candidate.h512x?.length === 24
+      || candidate.hex.includes(Buffer.from('INTELLI_ROCKS').toString('hex'))
+    ));
+    const serviceFingerprint = serviceData.map((entry) => `${entry.uuid}:${entry.hex}`).join('|');
+    const candidateFingerprint = manufacturerCandidates.map((candidate) => `${candidate.companyId ?? 'raw'}:${candidate.hex}`).join('|');
+
+    return {
+      id: `${Date.now().toString(36)}-${crypto.randomBytes(2).toString('hex')}`,
+      at,
+      lastAt: at,
+      address,
+      localName,
+      rssi: typeof peripheral.rssi === 'number' ? peripheral.rssi : null,
+      connectable: typeof peripheral.connectable === 'boolean' ? peripheral.connectable : null,
+      txPowerLevel: typeof advertisement.txPowerLevel === 'number' ? advertisement.txPowerLevel : null,
+      serviceUuids: Array.isArray(advertisement.serviceUuids) ? advertisement.serviceUuids : [],
+      serviceData,
+      manufacturerData,
+      manufacturerCandidates,
+      parsed: false,
+      interesting: nameLooksGovee || dataLooksH512x,
+      reason: reasons[0] || (manufacturerData ? 'no h512x candidate' : 'no manufacturer data'),
+      fingerprint: `${address}|${localName}|${candidateFingerprint}|${serviceFingerprint}`,
+    };
+  }
+
+  #rememberRawAdvertisement(raw, { force = false } = {}) {
+    if (!raw) return;
+    const now = Date.parse(raw.at) || Date.now();
+    const fingerprint = raw.fingerprint || `${raw.address}|${raw.localName}|${raw.manufacturerData || ''}`;
+    const last = this.rawFingerprintAt.get(fingerprint) || 0;
+    const previousCount = this.rawFingerprintCounts.get(fingerprint) || 0;
+
+    if (!force && last && now - last < BLE_RAW_DUPLICATE_WINDOW_MS) {
+      const seenCount = previousCount + 1;
+      this.rawFingerprintCounts.set(fingerprint, seenCount);
+      const existing = this.rawAdvertisements.find((entry) => entry.fingerprint === fingerprint);
+      if (existing) {
+        existing.seenCount = seenCount;
+        existing.lastAt = raw.at;
+        existing.rssi = raw.rssi;
+      }
+      return;
+    }
+
+    const payload = {
+      ...raw,
+      fingerprint,
+      seenCount: previousCount + 1,
+      lastAt: raw.at,
+    };
+    this.rawFingerprintCounts.set(fingerprint, payload.seenCount);
+    this.rawFingerprintAt.set(fingerprint, now);
+    this.rawAdvertisements = [payload, ...this.rawAdvertisements].slice(0, BLE_RAW_HISTORY_LIMIT);
+    this.#purgeRawFingerprints(now);
+    this.emit('rawAdvertisement', payload);
+  }
+
+  #purgeRawFingerprints(now) {
+    if (this.rawFingerprintAt.size <= BLE_RAW_HISTORY_LIMIT * 4) return;
+    for (const [fingerprint, seenAt] of this.rawFingerprintAt) {
+      if (now - seenAt <= 60_000) continue;
+      this.rawFingerprintAt.delete(fingerprint);
+      this.rawFingerprintCounts.delete(fingerprint);
     }
   }
 
@@ -1600,6 +1806,7 @@ ble.on('sensors', (sensors) => broadcastEvent('ble-sensors', { sensors }));
 ble.on('buttonPacket', (payload) => broadcastEvent('ble-packet', payload));
 ble.on('buttonEvent', (payload) => broadcastEvent('ble-event', payload));
 ble.on('actionExecuted', (payload) => broadcastEvent('ble-action', payload));
+ble.on('rawAdvertisement', (payload) => broadcastEvent('ble-raw', payload));
 ble.on('errorMessage', (message) => broadcastEvent('error', { message }));
 
 async function serveStatic(req, res) {
@@ -1654,6 +1861,7 @@ const server = http.createServer(async (req, res) => {
       res.write(`event: settings\ndata: ${JSON.stringify({ settings: govee.settings() })}\n\n`);
       res.write(`event: ble-status\ndata: ${JSON.stringify({ status: ble.status() })}\n\n`);
       res.write(`event: ble-sensors\ndata: ${JSON.stringify({ sensors: ble.allSensors() })}\n\n`);
+      res.write(`event: ble-raw-history\ndata: ${JSON.stringify({ rawAdvertisements: ble.allRawAdvertisements() })}\n\n`);
       sseClients.add(res);
       req.on('close', () => sseClients.delete(res));
       return;
@@ -1722,6 +1930,23 @@ const server = http.createServer(async (req, res) => {
         sensors: ble.allSensors(),
         packets: ble.allPackets(),
         events: ble.allEvents(),
+        rawAdvertisements: ble.allRawAdvertisements(),
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/ble/debug' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      if (typeof body.enabled !== 'boolean') {
+        const error = new Error('enabled must be a boolean');
+        error.statusCode = 400;
+        throw error;
+      }
+      const status = await ble.setDebug(body.enabled);
+      jsonResponse(res, 200, {
+        ok: true,
+        status,
+        rawAdvertisements: ble.allRawAdvertisements(),
       });
       return;
     }
