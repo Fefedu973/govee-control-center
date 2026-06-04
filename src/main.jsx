@@ -502,7 +502,7 @@ function GlobalActionsCard({ devices, command, settings, onRetryModeChange }) {
         <CardTitle className="flex items-center gap-2"><Boxes className="size-5" /> Actions globales</CardTitle>
         <CardDescription>Implémente une partie de l’ancien projet : all toggle, couleur commune et luminosité commune sur les appareils LAN détectés.</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
         <div className="space-y-2 rounded-xl border p-4">
           <p className="text-sm font-medium">Alimentation</p>
           <p className="text-muted-foreground text-xs">{controllableCount} appareil(s) contrôlable(s).</p>
@@ -516,11 +516,11 @@ function GlobalActionsCard({ devices, command, settings, onRetryModeChange }) {
           <Slider value={[brightness]} min={1} max={100} onValueChange={(value) => setBrightness(sliderValue(value))} />
           <Button variant="outline" onClick={() => command('all:brightness', '/api/actions/all-brightness', { value: brightness })}>Appliquer à tous</Button>
         </div>
-        <div className="space-y-3 rounded-xl border p-4">
+        <div className="min-w-0 space-y-3 rounded-xl border p-4">
           <Label>Couleur globale</Label>
-          <div className="grid min-w-0 gap-2 2xl:grid-cols-[minmax(0,1fr)_auto] 2xl:items-center">
+          <div className="grid min-w-0 gap-3">
             <ColorPicker value={color} onChange={setColor} triggerClassName="w-full min-w-0" />
-            <Button className="w-full whitespace-nowrap 2xl:w-auto" variant="outline" onClick={() => command('all:color', '/api/actions/all-color', hexToRgb(color))}>Appliquer à tous</Button>
+            <Button className="w-full" variant="outline" onClick={() => command('all:color', '/api/actions/all-color', hexToRgb(color))}>Appliquer à tous</Button>
           </div>
         </div>
         <div className="space-y-3 rounded-xl border p-4">

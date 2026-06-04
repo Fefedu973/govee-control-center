@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.adb-capture/
 data/config.json
 *.log
 *.local
