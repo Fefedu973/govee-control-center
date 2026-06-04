@@ -1,0 +1,10 @@
+{
+  "bleEnabled": false,
+  "bleActions": {},
+  "bleSensors": [],
+  "blePackets": [],
+  "bleEvents": [],
+  "scenes": [],
+  "cloudApiKey": "",
+  "retryMode": false
+}

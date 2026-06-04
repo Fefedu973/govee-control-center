@@ -1,0 +1,10 @@
+services:
+  govee-control-hub:
+    build: .
+    network_mode: host
+    environment:
+      PORT: "8787"
+      # GOVEE_BLE_ENABLED: "1"
+      # GOVEE_SCAN_IPS: "192.168.1.42,192.168.1.43"
+    volumes:
+      - ./data:/app/data
