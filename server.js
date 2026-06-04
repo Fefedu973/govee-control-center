@@ -1458,6 +1458,11 @@ class GoveeBleBridge extends EventEmitter {
 
   async setDebug(enabled) {
     this.debug = Boolean(enabled);
+    if (!this.debug) {
+      this.rawAdvertisements = [];
+      this.rawFingerprintAt.clear();
+      this.rawFingerprintCounts.clear();
+    }
     const config = await updateConfig((currentConfig) => {
       currentConfig.bleDebug = this.debug;
       return currentConfig;
@@ -1578,7 +1583,7 @@ class GoveeBleBridge extends EventEmitter {
       raw.model = parsed.sensor.model;
       raw.sensorId = parsed.sensor.id;
       raw.event = parsed.event;
-      this.#rememberRawAdvertisement(raw, { force: true });
+      if (this.debug) this.#rememberRawAdvertisement(raw, { force: true });
 
       const action = this.actions.get(parsed.sensor.id) || null;
       const sensor = { ...(this.sensors.get(parsed.sensor.id) || {}), ...parsed.sensor, action };
@@ -1588,7 +1593,7 @@ class GoveeBleBridge extends EventEmitter {
       return;
     }
 
-    if (this.debug || raw.interesting) this.#rememberRawAdvertisement(raw);
+    if (this.debug) this.#rememberRawAdvertisement(raw);
   }
 
   #createRawAdvertisement(peripheral, address, localName, advertisement, candidates) {

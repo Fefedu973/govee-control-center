@@ -1125,7 +1125,8 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [], ble
 
   const selectedSensor = bleSensors.find((sensor) => sensor.id === selected);
   const packetGroups = React.useMemo(() => groupBlePackets(blePackets, events), [blePackets, events]);
-  const rawAdvertisements = Array.isArray(bleRaw) ? bleRaw : [];
+  const debugRawEnabled = Boolean(bleStatus.debug);
+  const rawAdvertisements = debugRawEnabled && Array.isArray(bleRaw) ? bleRaw : [];
   const selectedRaw = rawAdvertisements.find((entry) => entry.id === selectedRawId) || rawAdvertisements[0] || null;
 
   React.useEffect(() => {
@@ -1135,6 +1136,10 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [], ble
   React.useEffect(() => {
     if (!selectedRawId && rawAdvertisements[0]) setSelectedRawId(rawAdvertisements[0].id);
   }, [rawAdvertisements, selectedRawId]);
+
+  React.useEffect(() => {
+    if (!debugRawEnabled) setSelectedRawId('');
+  }, [debugRawEnabled]);
 
   async function saveAction() {
     if (!selectedSensor) return;
@@ -1164,7 +1169,7 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [], ble
             <CardTitle className="flex items-center gap-2"><Bluetooth className="size-5" /> H5122 / Bluetooth</CardTitle>
             <CardDescription>
               {bleStatus.available
-                ? `${bleSensors.length} capteur(s) BLE détecté(s). ${rawAdvertisements.length} annonce(s) brutes en mémoire.`
+                ? `${bleSensors.length} capteur(s) BLE détecté(s). ${debugRawEnabled ? `${rawAdvertisements.length} annonce(s) brutes en mémoire.` : 'Debug raw désactivé.'}`
                 : 'BLE indisponible côté serveur'}
             </CardDescription>
           </div>
@@ -1212,7 +1217,9 @@ function BlePanel({ bleSensors, bleStatus, devices, events, blePackets = [], ble
 
           <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
             <div className="max-h-72 space-y-2 overflow-auto pr-1">
-              {rawAdvertisements.length === 0 ? (
+              {!debugRawEnabled ? (
+                <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Debug raw désactivé.</p>
+              ) : rawAdvertisements.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Aucune annonce brute reçue par l’app.</p>
               ) : rawAdvertisements.map((raw) => (
                 <button
