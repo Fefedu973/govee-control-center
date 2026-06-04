@@ -74,6 +74,15 @@ function formatJson(value) {
   }
 }
 
+function parseEventData(event, fallback = {}) {
+  if (!event?.data || event.data === 'undefined') return fallback;
+  try {
+    return JSON.parse(event.data);
+  } catch {
+    return fallback;
+  }
+}
+
 function powerLabel(device) {
   const state = device?.status?.onOff;
   if (state === 1) return { label: 'Allumé', variant: 'success' };
@@ -333,36 +342,42 @@ function useGoveeState({ cloudEnabled = false } = {}) {
   React.useEffect(() => {
     refresh().catch((error) => setLastEvent(error.message));
     const source = new EventSource('/api/events');
-    source.addEventListener('devices', (event) => setDevices(JSON.parse(event.data).devices || []));
-    source.addEventListener('settings', (event) => setSettings(JSON.parse(event.data).settings || { retryMode: false }));
-    source.addEventListener('ble-sensors', (event) => setBleSensors(JSON.parse(event.data).sensors || []));
-    source.addEventListener('ble-status', (event) => setBleStatus(JSON.parse(event.data).status || {}));
-    source.addEventListener('ble-raw-history', (event) => setBleRaw(JSON.parse(event.data).rawAdvertisements || []));
+    source.addEventListener('devices', (event) => setDevices(parseEventData(event).devices || []));
+    source.addEventListener('settings', (event) => setSettings(parseEventData(event).settings || { retryMode: false }));
+    source.addEventListener('ble-sensors', (event) => setBleSensors(parseEventData(event).sensors || []));
+    source.addEventListener('ble-status', (event) => setBleStatus(parseEventData(event).status || {}));
+    source.addEventListener('ble-raw-history', (event) => setBleRaw(parseEventData(event).rawAdvertisements || []));
     source.addEventListener('ble-raw', (event) => {
-      const payload = JSON.parse(event.data);
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setBleRaw((previous) => [payload, ...previous.filter((entry) => entry.fingerprint !== payload.fingerprint || entry.id !== payload.id)].slice(0, 160));
     });
     source.addEventListener('ble-event', (event) => {
-      const payload = JSON.parse(event.data);
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setEvents((previous) => [payload, ...previous].slice(0, 80));
       const sourceName = payload.sensor?.name || payload.sensor?.address || 'H5122';
       const eventId = payload.event?.id ? ` · ${payload.event.id}` : '';
       setLastEvent(`${sourceName} · ${payload.event?.type || 'event'}${eventId} · ${new Date(payload.at).toLocaleTimeString()}`);
     });
     source.addEventListener('ble-packet', (event) => {
-      const payload = JSON.parse(event.data);
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setBlePackets((previous) => [payload, ...previous].slice(0, 240));
     });
     source.addEventListener('scan', (event) => {
-      const payload = JSON.parse(event.data);
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setLastEvent(`Scan LAN lancé à ${formatTime(payload.at)}`);
     });
     source.addEventListener('retry', (event) => {
-      const payload = JSON.parse(event.data);
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setLastEvent(`Retry LAN ${payload.label || payload.kind} ${payload.attempt}/${payload.maxAttempts} · ${formatTime(payload.at)}`);
     });
-    source.addEventListener('error', (event) => {
-      const payload = JSON.parse(event.data);
+    source.addEventListener('backend-error', (event) => {
+      const payload = parseEventData(event, null);
+      if (!payload) return;
       setLastEvent(payload.message || 'Erreur backend');
     });
     source.onerror = () => setLastEvent('SSE déconnecté, tentative de reconnexion…');

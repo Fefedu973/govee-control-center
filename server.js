@@ -1800,14 +1800,14 @@ govee.on('devices', (devices) => broadcastEvent('devices', { devices }));
 govee.on('scan', (scan) => broadcastEvent('scan', scan));
 govee.on('settings', (settings) => broadcastEvent('settings', { settings }));
 govee.on('retry', (retry) => broadcastEvent('retry', retry));
-govee.on('errorMessage', (message) => broadcastEvent('error', { message }));
+govee.on('errorMessage', (message) => broadcastEvent('backend-error', { message }));
 ble.on('status', (status) => broadcastEvent('ble-status', { status }));
 ble.on('sensors', (sensors) => broadcastEvent('ble-sensors', { sensors }));
 ble.on('buttonPacket', (payload) => broadcastEvent('ble-packet', payload));
 ble.on('buttonEvent', (payload) => broadcastEvent('ble-event', payload));
 ble.on('actionExecuted', (payload) => broadcastEvent('ble-action', payload));
 ble.on('rawAdvertisement', (payload) => broadcastEvent('ble-raw', payload));
-ble.on('errorMessage', (message) => broadcastEvent('error', { message }));
+ble.on('errorMessage', (message) => broadcastEvent('backend-error', { message }));
 
 async function serveStatic(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host}`);
