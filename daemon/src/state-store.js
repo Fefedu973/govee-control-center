@@ -100,11 +100,15 @@ export class StateStore {
 
     const payload = `${JSON.stringify(this.state, null, 2)}\n`;
     const tempPath = `${this.filePath}.${process.pid}.tmp`;
-    this.savePromise = this.savePromise.then(async () => {
-      await fs.writeFile(tempPath, payload, { mode: 0o600 });
-      await fs.rename(tempPath, this.filePath);
-      await fs.chmod(this.filePath, 0o600);
-    });
+    this.savePromise = this.savePromise
+      .catch(() => {
+        // A transient write failure must not poison every later persistence attempt.
+      })
+      .then(async () => {
+        await fs.writeFile(tempPath, payload, { mode: 0o600 });
+        await fs.rename(tempPath, this.filePath);
+        await fs.chmod(this.filePath, 0o600);
+      });
     await this.savePromise;
   }
 }

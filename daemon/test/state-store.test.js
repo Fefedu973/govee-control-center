@@ -24,3 +24,21 @@ test('deduplicates event ids across process restarts', async () => {
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test('a failed persistence attempt does not block later writes', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'govee-state-recovery-'));
+  const statePath = path.join(directory, 'state.json');
+
+  try {
+    const store = new StateStore(statePath);
+    await store.init();
+    store.savePromise = Promise.reject(new Error('simulated transient failure'));
+    store.update({ lastPower: 1 });
+    await store.flush();
+
+    const persisted = JSON.parse(await fs.readFile(statePath, 'utf8'));
+    assert.equal(persisted.lastPower, 1);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
