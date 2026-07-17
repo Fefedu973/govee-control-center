@@ -1,7 +1,7 @@
 import path from 'node:path';
 import process from 'node:process';
 import { BleScanner } from './ble-scanner.js';
-import { loadConfig } from './config.js';
+import { loadConfig, saveConfig, validateConfig } from './config.js';
 import { GoveeLanClient } from './govee-lan.js';
 import { createHealthServer } from './health-server.js';
 import { log } from './logger.js';
@@ -22,7 +22,7 @@ const runtime = {
   stopping: false,
 };
 
-const config = await loadConfig(configPath);
+let config = await loadConfig(configPath);
 const store = new StateStore(statePath);
 await store.init();
 
@@ -30,6 +30,28 @@ const lan = new GoveeLanClient({ target: config.target, behavior: config.behavio
 await lan.start();
 
 let actionQueue = Promise.resolve();
+
+async function performAction(source) {
+  try {
+    const result = await lan.smartToggle(config.action);
+    store.increment('actions');
+    log('info', 'smart_toggle', { ...result, trigger: source });
+    return result;
+  } catch (error) {
+    store.increment('failures');
+    log('error', 'smart_toggle_failed', { message: error.message, trigger: source });
+    throw error;
+  }
+}
+
+function enqueueAction(task) {
+  const execution = actionQueue.then(task);
+  actionQueue = execution.catch((error) => {
+    log('error', 'event_queue_failed', { message: error.message });
+  });
+  return execution;
+}
+
 const ble = new BleScanner({
   sensor: config.sensor,
   log,
@@ -37,34 +59,52 @@ const ble = new BleScanner({
     runtime.ble = status;
   },
   onEvent({ sensor, event }) {
-    actionQueue = actionQueue
-      .then(async () => {
-        const now = Date.now();
-        const eventKey = `${event.button}:${event.id}`;
-        if (!store.acceptEvent(eventKey, now, config.behavior.dedupeTtlMs)) {
-          store.increment('duplicates');
-          return;
-        }
+    enqueueAction(async () => {
+      const now = Date.now();
+      const eventKey = `${event.button}:${event.id}`;
+      if (!store.acceptEvent(eventKey, now, config.behavior.dedupeTtlMs)) {
+        store.increment('duplicates');
+        return;
+      }
 
-        store.increment('buttonEvents');
-        store.update({ lastEventAt: new Date(now).toISOString() });
-        log('info', 'button_press', { model: sensor.model, button: event.button, battery: sensor.battery });
-
-        try {
-          const result = await lan.smartToggle();
-          store.increment('actions');
-          log('info', 'smart_toggle', result);
-        } catch (error) {
-          store.increment('failures');
-          log('error', 'smart_toggle_failed', { message: error.message });
-        }
-      })
-      .catch((error) => log('error', 'event_queue_failed', { message: error.message }));
+      store.increment('buttonEvents');
+      store.update({ lastEventAt: new Date(now).toISOString() });
+      log('info', 'button_press', { model: sensor.model, button: event.button, battery: sensor.battery });
+      await performAction('bluetooth');
+    }).catch(() => {});
   },
 });
 
+async function applyConfig(value) {
+  const next = validateConfig(value);
+  if (next.target.listenPort !== config.target.listenPort) {
+    throw new Error('Le port UDP d\'ecoute necessite un redemarrage du service');
+  }
+  if (next.health.host !== config.health.host || next.health.port !== config.health.port) {
+    throw new Error('L\'adresse de la console necessite un redemarrage du service');
+  }
+
+  const saved = await saveConfig(configPath, next);
+  lan.reconfigure({ target: saved.target, behavior: saved.behavior });
+  ble.reconfigure(saved.sensor);
+  config = saved;
+
+  await lan.discover();
+  try {
+    await lan.refreshStatus();
+  } catch (error) {
+    log('warn', 'configured_target_status_failed', { message: error.message });
+  }
+  return config;
+}
+
 const health = createHealthServer({
   config: config.health,
+  getConfig: () => config,
+  getDiscovery: () => ({ bluetooth: ble.devices(), lan: lan.devices() }),
+  saveConfig: applyConfig,
+  testAction: () => enqueueAction(() => performAction('manual')),
+  discoverLan: () => lan.discover(),
   getStatus() {
     const state = store.snapshot();
     return {

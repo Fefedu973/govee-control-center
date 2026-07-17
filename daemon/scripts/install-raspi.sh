@@ -30,7 +30,7 @@ if [[ ! -f "${CONFIG_DIR}/config.json" ]]; then
 fi
 
 sudo install -d -m 0755 -o root -g root "${APP_DIR}" "${APP_DIR}/src"
-sudo install -d -m 0750 -o root -g pi "${CONFIG_DIR}"
+sudo install -d -m 0770 -o root -g pi "${CONFIG_DIR}"
 sudo install -d -m 0750 -o pi -g pi "${STATE_DIR}"
 sudo install -m 0644 -o root -g root "${SOURCE_DIR}/package.json" "${APP_DIR}/package.json"
 sudo install -m 0644 -o root -g root "${SOURCE_DIR}/package-lock.json" "${APP_DIR}/package-lock.json"
@@ -38,8 +38,10 @@ sudo find "${APP_DIR}/src" -mindepth 1 -maxdepth 1 -type f -delete
 sudo install -m 0644 -o root -g root "${SOURCE_DIR}"/src/*.js "${APP_DIR}/src/"
 
 if [[ ! -f "${CONFIG_DIR}/config.json" ]]; then
-  sudo install -m 0640 -o root -g pi "${TEMP_CONFIG}" "${CONFIG_DIR}/config.json"
+  sudo install -m 0600 -o pi -g pi "${TEMP_CONFIG}" "${CONFIG_DIR}/config.json"
 fi
+sudo chown pi:pi "${CONFIG_DIR}/config.json"
+sudo chmod 0600 "${CONFIG_DIR}/config.json"
 
 sudo npm --prefix "${APP_DIR}" ci --omit=dev --no-audit --no-fund
 sudo install -m 0644 -o root -g root \

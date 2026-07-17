@@ -43,6 +43,13 @@ const config = {
     retryOnce: true,
     dedupeTtlMs: 300000,
   },
+  action: {
+    mode: 'power-toggle',
+    on: {
+      brightness: null,
+      color: null,
+    },
+  },
   health: {
     host: '127.0.0.1',
     port: 8788,

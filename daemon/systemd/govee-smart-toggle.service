@@ -24,7 +24,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/govee-smart-toggle
+ReadWritePaths=/etc/govee-smart-toggle /var/lib/govee-smart-toggle
 RestrictSUIDSGID=true
 LockPersonality=true
 

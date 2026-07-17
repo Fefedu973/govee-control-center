@@ -9,6 +9,7 @@ export class BleScanner {
     this.noble = null;
     this.scanning = false;
     this.state = 'loading';
+    this.discoveredDevices = new Map();
   }
 
   async start() {
@@ -36,6 +37,30 @@ export class BleScanner {
     this.noble?.removeAllListeners('stateChange');
   }
 
+  reconfigure(sensor) {
+    this.sensor = sensor;
+  }
+
+  devices() {
+    const devices = [...this.discoveredDevices.values()].map((device) => ({
+      ...device,
+      configured: device.address === this.sensor.address,
+    }));
+    if (!devices.some((device) => device.address === this.sensor.address)) {
+      devices.push({
+        address: this.sensor.address,
+        name: this.sensor.address,
+        model: 'Configured button',
+        buttonCount: Math.max(1, this.sensor.button + 1),
+        battery: null,
+        rssi: null,
+        lastSeen: null,
+        configured: true,
+      });
+    }
+    return devices.sort((left, right) => `${left.model}${left.address}`.localeCompare(`${right.model}${right.address}`));
+  }
+
   #startScanning() {
     if (!this.noble || this.scanning || this.noble.state !== 'poweredOn') return;
     try {
@@ -61,7 +86,7 @@ export class BleScanner {
 
   #onDiscover(peripheral) {
     const address = String(peripheral.address || peripheral.id || '').toLowerCase();
-    if (address !== this.sensor.address) return;
+    if (!address) return;
 
     const advertisement = peripheral.advertisement || {};
     const localName = advertisement.localName || advertisement.completeLocalName || '';
@@ -72,7 +97,15 @@ export class BleScanner {
         rssi: peripheral.rssi,
         manufacturerData: candidate,
       });
-      if (!parsed || parsed.event.button !== this.sensor.button) continue;
+      if (!parsed) continue;
+
+      this.discoveredDevices.set(address, {
+        ...parsed.sensor,
+        lastSeen: new Date().toISOString(),
+        configured: address === this.sensor.address,
+      });
+
+      if (address !== this.sensor.address || parsed.event.button !== this.sensor.button) return;
       this.onEvent(parsed);
       return;
     }

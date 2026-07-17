@@ -1,6 +1,6 @@
 # Govee smart-toggle daemon
 
-This is the production replacement for the former 257 MB Govee Control Hub on the Raspberry Pi. It intentionally contains no browser UI, discovery dashboard, scenes, packet history, cloud API, screenshots, or firmware tools.
+This is the production replacement for the former 257 MB Govee Control Hub on the Raspberry Pi. It has a small loopback-only configuration page, but intentionally contains no public dashboard, scenes, packet history, cloud API, screenshots, or firmware tools.
 
 It performs one job:
 
@@ -8,7 +8,8 @@ It performs one job:
 2. deduplicate repeated advertisements by the H512x event id;
 3. query the configured Govee light over the LAN API;
 4. send the opposite `turn` state;
-5. verify the resulting state once.
+5. optionally apply a configured color and brightness when turning on;
+6. verify the resulting state once.
 
 The daemon stores only a bounded list of 32 event ids, the last known power state, timestamps, and four counters. Its HTTP endpoint binds to loopback only.
 
@@ -49,3 +50,23 @@ sudo systemctl enable --now govee-control-center.service
 ```
 
 Configuration lives in `/etc/govee-smart-toggle/config.json`; minimal runtime state lives in `/var/lib/govee-smart-toggle/state.json`.
+
+## Local configuration console
+
+The console is deliberately bound to `127.0.0.1` on the Raspberry Pi. Open an SSH tunnel from your workstation:
+
+```bash
+ssh -L 8788:127.0.0.1:8788 pi@raspberrypi
+```
+
+Then open `http://127.0.0.1:8788`. Keep the SSH session open while using the page.
+
+The page lets you:
+
+- press and select a detected H5122/H5125/H5126 Bluetooth button;
+- choose which physical button index triggers the action;
+- discover and select a Govee LAN device;
+- use a simple power toggle; or
+- turn on with a forced RGB color and optional brightness, then turn off normally.
+
+`Enregistrer et tester` persists the settings and immediately executes one action. Press it a second time to restore the previous power state when testing the simple toggle. Do not expose port 8788 through the router or a public reverse proxy.
