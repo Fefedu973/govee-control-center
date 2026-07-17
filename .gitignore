@@ -8,3 +8,4 @@ data/config.json
 .env.*
 !.env.example
 package-lock.json
+!daemon/package-lock.json

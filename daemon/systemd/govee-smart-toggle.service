@@ -1,0 +1,32 @@
+[Unit]
+Description=Govee H5122 smart-toggle daemon
+Wants=network-online.target bluetooth.target
+After=network-online.target bluetooth.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+SupplementaryGroups=bluetooth
+WorkingDirectory=/opt/govee-smart-toggle
+Environment=NODE_ENV=production
+Environment=GOVEE_CONFIG_PATH=/etc/govee-smart-toggle/config.json
+Environment=GOVEE_STATE_PATH=/var/lib/govee-smart-toggle/state.json
+ExecStart=/usr/bin/node /opt/govee-smart-toggle/src/index.js
+Restart=always
+RestartSec=3
+KillSignal=SIGTERM
+TimeoutStopSec=15
+UMask=0077
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/govee-smart-toggle
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

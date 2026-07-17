@@ -1,5 +1,7 @@
 # Govee Control Hub
 
+> The Raspberry Pi production path is now the lightweight, UI-free daemon in [`daemon/`](daemon/README.md). This Control Hub remains available as a diagnostic tool and rollback target.
+
 Application locale pour contrôler des appareils Govee en LAN, tester les payloads **Razer/DreamView Direct Connect**, sauvegarder des **scènes locales**, piloter des actions globales, et utiliser un bouton **Govee H5122 Mini Button** en Bluetooth Low Energy pour déclencher des actions.
 
 ## Ce qui a changé dans cette version
