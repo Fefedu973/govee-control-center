@@ -125,9 +125,3 @@
     @apply font-sans;
   }
 }
-
-@layer components {
-  .glass-panel {
-    @apply border bg-card/80 shadow-sm backdrop-blur;
-  }
-}

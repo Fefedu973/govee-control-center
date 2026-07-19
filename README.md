@@ -1,260 +1,139 @@
 # Govee Control Hub
 
-> The Raspberry Pi production path is now the lightweight, UI-free daemon in [`daemon/`](daemon/README.md). This Control Hub remains available as a diagnostic tool and rollback target.
+Hub local pour piloter des appareils Govee, avec **tous les moyens de contrôle unifiés derrière une seule API** :
 
-Application locale pour contrôler des appareils Govee en LAN, tester les payloads **Razer/DreamView Direct Connect**, sauvegarder des **scènes locales**, piloter des actions globales, et utiliser un bouton **Govee H5122 Mini Button** en Bluetooth Low Energy pour déclencher des actions.
+- **LAN** — UDP local (scan multicast, `turn`, `brightness`, `colorwc`, statut) : rapide, sans cloud ;
+- **Cloud** — API officielle Govee : secours quand le LAN ne suffit pas, et fonctions exclusives (LightScenes/DIY, music mode, segments) ;
+- **Bluetooth** — boutons Govee H512x (H5122/H5125/H5126) en scan BLE passif, qui déclenchent des actions sur n'importe quel appareil du hub.
 
-## Ce qui a changé dans cette version
+Chaque appareil est fusionné en une seule fiche (par adresse MAC) quel que soit le transport. Une commande passe par le **meilleur transport disponible** : LAN d'abord, cloud en secours — ou un transport forcé à la demande.
 
-- UI remise au propre avec des composants style **shadcn/ui récents** : React 19, Vite, Tailwind CSS v4, `data-slot`, `components.json`, imports compatibles CLI, et primitives Radix pour `Select`, `Tabs`, `Switch`, `Slider` et `Popover`.
-- Suppression des faux dropdowns maison : les sélecteurs sont maintenant des composants shadcn/Radix.
-- Ajout d’un **ColorPicker shadcn-like** avec popover, presets, sliders RGB, input HEX et support de l’`EyeDropper` API quand disponible.
-- Fix H5122 : les événements BLE sont maintenant dédupliqués avec l’event id H512x `manufacturerData[2:6]`, exposé dans `event.id` et `sensor.raw.eventId`.
-- Suppression du réglage manuel de debounce H5122 dans l’UI : un même appui répété en BLE ne déclenche plus plusieurs actions tant que son event id est déjà vu.
-- Ajout des **actions globales** prévues dans l’ancien projet : tout allumer, tout éteindre, luminosité globale, couleur globale.
-- Ajout des **scènes locales** : sauvegarde d’un snapshot des états LAN connus dans `data/config.json`, puis réapplication plus tard.
-- Conservation du Direct/Razer/DreamView expérimental pour préparer les usages SignalRGB/DreamView.
+> Pour la production Raspberry Pi « un bouton → une lampe », utilise le daemon allégé dans [`daemon/`](daemon/README.md). Ce hub est l'application complète avec interface.
 
-## Architecture
+## Stack
 
-```text
-navigateur React
-  -> HTTP/SSE local
-    -> serveur Node.js
-      -> UDP LAN API Govee pour les lampes
-      -> scan BLE passif pour les boutons H5122
-      -> stockage local data/config.json pour actions BLE et scènes
-```
-
-Le navigateur ne peut pas parler directement UDP ni scanner le BLE en arrière-plan de façon fiable. Le serveur Node.js fait donc le pont local.
-
-## Prérequis LAN
-
-1. L’appareil Govee doit être compatible LAN API.
-2. Il doit être sur le même réseau local que la machine qui lance ce projet.
-3. Dans **Govee Home**, active **LAN Control** pour chaque appareil.
-4. Autorise le pare-feu :
-   - UDP sortant vers `239.255.255.250:4001` pour le scan ;
-   - UDP entrant local sur `4002` pour les réponses ;
-   - UDP sortant vers les appareils sur `4003` pour les commandes.
-
-Le port local UDP `4002` est fixe dans le protocole. Évite de lancer Home Assistant Govee LAN, govee2mqtt, openHAB Govee LAN, etc. en même temps sur la même machine/IP.
-
-## Prérequis Bluetooth H5122
-
-Le H5122 est un capteur BLE “sleepy” : il n’est pas forcément visible tout le temps. Le serveur écoute les annonces BLE et détecte surtout les événements quand tu appuies sur le bouton.
-
-- Linux/Raspberry Pi : installe les paquets Bluetooth système si nécessaire, par exemple `bluez`, `bluetooth`, `libudev-dev`.
-- Windows : le support dépend de la pile BLE, de Node et des bindings natifs de `@stoprocent/noble`.
-- Docker : le BLE dans un conteneur est beaucoup moins fiable. Lance plutôt Node directement sur l’hôte pour utiliser le H5122.
-
-## Installation dev
-
-```bash
-cd govee-control-hub
-npm install
-npm run dev
-```
-
-Puis ouvre l’UI Vite :
+- Backend : Node.js (modules natifs uniquement), découpé dans [`server/`](server/) — UDP LAN, cloud API, BLE via `@stoprocent/noble`, SSE.
+- Frontend : React 19 + Vite + Tailwind CSS v4 + [shadcn/ui](https://ui.shadcn.com) (style `base-nova`, primitives Base UI), en TypeScript.
+- Persistance : un seul fichier `data/config.json` (actions BLE, scènes locales, clé cloud, réglages).
 
 ```text
-http://localhost:5173
+navigateur (React, SSE)
+  -> serveur Node local (server/)
+       ├─ lan.js    UDP 4001/4002/4003 (découverte + commandes)
+       ├─ cloud.js  API cloud Govee (clé API)
+       ├─ ble.js    scan BLE passif des boutons H512x
+       └─ hub.js    registre unifié + routage des commandes
 ```
 
-Le backend écoute sur :
-
-```text
-http://localhost:8787
-```
-
-## Production locale
+## Démarrage
 
 ```bash
-npm install
-npm run build
-npm start
+bun install        # ou npm install
+bun run dev        # serveur (8787) + Vite (5173) en parallèle
 ```
 
-Puis ouvre :
+UI de dev : `http://localhost:5173` (proxy `/api` vers le serveur).
 
-```text
-http://localhost:8787
-```
-
-## shadcn/ui
-
-Le projet reste en JavaScript/Vite, mais il est configuré pour le CLI moderne :
+Production locale :
 
 ```bash
-npm run shadcn:info
-npm run shadcn:add -- button
-npm run shadcn:init
+bun run build
+bun run start      # tout sur http://localhost:8787
 ```
 
-`components.json` pointe vers `src/index.css`, Tailwind v4 laisse `tailwind.config` vide, et `package.json#imports` fournit aussi des alias `#ui/*`, `#components/*`, `#lib/*` en plus de `@/*`.
+`bun run check` vérifie la syntaxe serveur, les types et le build.
 
-## Variables d’environnement utiles
-
-```bash
-# Port HTTP du backend
-PORT=8787
-
-# IP directes à scanner en plus du multicast, pratique si ton Wi-Fi bloque le multicast
-GOVEE_SCAN_IPS=192.168.1.42,192.168.1.43
-
-# Activer le scan BLE au démarrage
-GOVEE_BLE_ENABLED=1
-
-# Durée pendant laquelle un event id H512x déjà traité reste ignoré
-GOVEE_BLE_EVENT_ID_TTL_MS=600000
-
-# Fallback seulement si un modèle BLE futur ne fournit pas d'event id
-GOVEE_BLE_FALLBACK_EVENT_WINDOW_MS=9000
-
-# Intervalle d'autoscan LAN
-GOVEE_AUTOSCAN_INTERVAL_MS=10000
-
-# Intervalle de polling des statuts LAN
-GOVEE_STATUS_POLL_INTERVAL_MS=30000
-```
-
-Windows PowerShell :
-
-```powershell
-$env:GOVEE_SCAN_IPS="192.168.1.42"; $env:GOVEE_BLE_ENABLED="1"; npm start
-```
-
-## API HTTP importante
+## Transports
 
 ### LAN
 
-```text
-GET  /api/devices
-POST /api/scan
-POST /api/manual-device
-POST /api/devices/:id/power
-POST /api/devices/:id/smart-toggle
-POST /api/devices/:id/brightness
-POST /api/devices/:id/color
-POST /api/devices/:id/color-temperature
-POST /api/devices/:id/status
-```
+1. Appareil compatible LAN API, sur le même réseau.
+2. Active **LAN Control** par appareil dans Govee Home.
+3. Pare-feu : UDP sortant vers `239.255.255.250:4001`, entrant local sur `4002`, sortant vers les appareils sur `4003`.
 
-`smart-toggle` n’est pas une commande LAN native Govee : le backend relit le statut avec `devStatus`/`status`, puis envoie `turn` avec la valeur opposée. Si l’état est inconnu, `fallbackOnUnknown` décide quoi faire.
+Le port local `4002` est fixe dans le protocole : ne lance pas un autre intégrateur LAN Govee (Home Assistant, govee2mqtt…) en même temps sur la même machine. Si le multicast est bloqué, ajoute l'IP à la main (Réglages → LAN) ou via `GOVEE_SCAN_IPS`.
 
-### Actions globales
+### Cloud
 
-```text
-POST /api/actions/all-power
-POST /api/actions/all-brightness
-POST /api/actions/all-color
-```
+Colle une clé API Govee (app Govee Home → profil → À propos de nous → Demander une clé API) dans **Réglages → Cloud**, ou fournis `GOVEE_API_KEY`. Les appareils cloud sont synchronisés au démarrage puis à la demande (l'API est limitée en quota : pas de polling automatique).
 
-Exemple :
+### Bluetooth (boutons H512x)
 
-```bash
-curl -X POST "http://localhost:8787/api/actions/all-color" \
-  -H "Content-Type: application/json" \
-  -d '{"r":255,"g":80,"b":0}'
-```
+Scan passif côté serveur : le bouton n'est pas appairé, le serveur écoute ses annonces. Un appui = un event id H512x unique (`manufacturerData[2:6]`), donc les annonces répétées d'un même appui sont dédupliquées nativement. Chaque bouton peut déclencher : smart toggle (lire l'état puis inverser), toggle sur état connu, toujours allumer, toujours éteindre — sur n'importe quel appareil du hub.
 
-### Scènes locales
+- Linux/Raspberry Pi : `bluez`, `bluetooth`, `libudev-dev`.
+- Windows : dépend de la pile BLE et des bindings `@stoprocent/noble`.
+- Docker : BLE déconseillé en conteneur, lance Node sur l'hôte.
 
-```text
-GET  /api/scenes
-POST /api/scenes/snapshot
-POST /api/scenes/:id/apply
-POST /api/scenes/:id/delete
-```
+## API HTTP
 
-Les scènes sont des snapshots locaux des états déjà connus. Il faut donc scanner/lire le statut au moins une fois avant de sauvegarder une scène.
+| Méthode | Route | Description |
+| --- | --- | --- |
+| GET | `/api/state` | État complet (appareils unifiés, scènes, BLE, cloud, réglages) |
+| GET | `/api/events` | SSE : `state` initial puis `devices`, `scenes`, `ble-*`, `cloud-status`, `scan`, `retry`, `error` |
+| POST | `/api/scan` | Relance une découverte LAN (`{ "ips": ["192.168.1.42"] }` optionnel) |
+| POST | `/api/devices/manual` | Ajoute un appareil LAN par IP (`{ ip, sku?, device? }`) |
+| POST | `/api/devices/:id/command` | Commande unifiée (voir ci-dessous) |
+| GET | `/api/devices/:id/cloud-scenes` | Liste les LightScenes/DIY cloud de l'appareil |
+| POST | `/api/actions/all` | Action globale (`{ type: "power", on: true }`, `brightness`, `color`) |
+| GET | `/api/scenes` | Scènes locales |
+| POST | `/api/scenes/snapshot` | Snapshot des états connus (`{ name? }`) |
+| POST | `/api/scenes/:id/apply` | Applique une scène |
+| DELETE | `/api/scenes/:id` | Supprime une scène |
+| POST | `/api/ble/enable` | Active/désactive le scan BLE (`{ enabled }`) |
+| POST | `/api/ble/buttons/:id/action` | Configure l'action d'un bouton (`{ targetDeviceId, mode, fallbackOnUnknown }`) |
+| POST | `/api/ble/buttons/:id/test` | Exécute l'action configurée |
+| POST | `/api/cloud/api-key` | Enregistre/oublie la clé API (`{ apiKey }`) |
+| POST | `/api/cloud/refresh` | Resynchronise les appareils cloud |
+| POST | `/api/settings` | Réglages LAN (`{ retryMode }`) |
 
-### Direct / Razer / DreamView
+### Commande unifiée
 
-```text
-POST /api/devices/:id/direct-mode
-POST /api/devices/:id/direct-color
-POST /api/devices/:id/direct-pixels
-```
-
-Exemple pour une ampoule logique à un pixel :
+`POST /api/devices/:id/command` — `:id` est l'identifiant unifié (MAC, URL-encodée). Le champ `via` (`"auto"` par défaut, `"lan"`, `"cloud"`) force un transport.
 
 ```bash
-curl -X POST "http://localhost:8787/api/devices/TON_ID/direct-color" \
-  -H "Content-Type: application/json" \
-  -d '{"protocol":"razer","ledCount":1,"r":255,"g":0,"b":0}'
+# Toggle intelligent (lecture d'état fraîche puis inversion), transport auto
+curl -X POST "http://localhost:8787/api/devices/AA%3ABB%3ACC%3A11%3A22%3A33%3A44%3A55/command" \
+  -H "content-type: application/json" \
+  -d '{ "type": "toggle" }'
 ```
 
-Protocoles testables :
+| `type` | Paramètres | Transports |
+| --- | --- | --- |
+| `power` | `on: boolean` | LAN / cloud |
+| `toggle` | `fallbackOnUnknown?`, `fresh?` | LAN / cloud |
+| `brightness` | `value: 1-100` | LAN / cloud |
+| `color` | `r, g, b: 0-255` | LAN / cloud |
+| `color-temperature` | `kelvin` | LAN / cloud |
+| `refresh` | — | LAN / cloud |
+| `cloud-scene` | `value`, `instance: lightScene\|diyScene` | cloud |
+| `segment-color` | `segment`, `color: {r,g,b}` | cloud |
+| `segment-brightness` | `segment`, `brightness` | cloud |
+| `music-mode` | `mode`, `sensitivity`, `autoColor`, `color?` | cloud |
 
-- `razer`
-- `dreamview`
-- `dreamview-v2`
-- `razer-legacy`
-
-Tous les modèles n’acceptent pas ce mode. Si l’appareil ignore `cmd: "razer"`, repasse sur les commandes LAN classiques.
-
-### Bluetooth H5122
-
-```text
-GET  /api/ble/status
-POST /api/ble/enable
-POST /api/ble/sensors/:id/action
-```
-
-Configurer une pression H5122 pour faire un smart toggle :
+## Variables d'environnement
 
 ```bash
-curl -X POST "http://localhost:8787/api/ble/sensors/AA%3ABB%3ACC%3ADD%3AEE%3AFF/action" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "targetDeviceId":"manual:192.168.1.42",
-    "mode":"smart-toggle",
-    "fallbackOnUnknown":true
-  }'
+PORT=8787                            # port HTTP
+GOVEE_SCAN_IPS=192.168.1.42          # IPs unicast en plus du multicast
+GOVEE_API_KEY=...                    # clé cloud (sinon via l'UI)
+GOVEE_BLE_ENABLED=1                  # scan BLE au démarrage
+GOVEE_AUTOSCAN_INTERVAL_MS=10000     # intervalle d'autoscan LAN
+GOVEE_STATUS_POLL_INTERVAL_MS=30000  # polling des statuts LAN
+GOVEE_RETRY_MAX_ATTEMPTS=2           # renvois max en mode retry
+GOVEE_BLE_EVENT_ID_TTL_MS=600000     # durée d'ignorance d'un event id déjà vu
 ```
-
-## Détails H5122 BLE
-
-Le parser implémenté reprend la logique open-source utilisée par Home Assistant / `govee-ble` :
-
-- annonce manufacturer data H512x de 24 octets ;
-- CRC sur les 16 octets chiffrés ;
-- clé AES-128-ECB dérivée des 4 octets `time_ms` + 12 zéros, puis inversée ;
-- payload déchiffré contenant le model id, la batterie et le numéro de bouton ;
-- H5122 = model id `8`, bouton `button_0`.
-
-La nouveauté importante : `time_ms = manufacturerData[2:6]` est conservé comme **event id**. Les paquets répétés du même appui gardent le même event id, donc ils sont ignorés. Plusieurs vrais appuis successifs ont des event ids différents et restent acceptés.
-
-Le scan est passif : le serveur ne se connecte pas au bouton, il écoute les annonces BLE.
-
-## Fonctionnalités reprises/préparées depuis `Fefedu973/govee-control-center`
-
-Implémenté ici :
-
-- LAN API local ;
-- Direct/Razer/DreamView expérimental ;
-- BLE H5122 ;
-- all toggle / all same color ;
-- color temperature ;
-- scène locale simple ;
-- base pour logique événementielle via “H5122 press -> action”.
-
-Pas encore implémenté complètement :
-
-- cloud API Govee complète avec LightScenes/DIY officiels ;
-- music mode cloud ;
-- intégrations Google Assistant/Alexa/Home Assistant/Stream Deck ;
-- éditeur visuel type Scratch pour scénarios complexes.
 
 ## Docker
 
-Le LAN API fonctionne mieux en `network_mode: host` sous Linux :
+Le LAN fonctionne mieux en `network_mode: host` (Linux) :
 
 ```bash
-docker build -t govee-control-hub .
-docker run --network host -e PORT=8787 govee-control-hub
+docker compose up -d --build
+# ou
+docker build -t govee-control-hub . && docker run --network host -v ./data:/app/data govee-control-hub
 ```
 
-Pour le BLE/H5122, Docker est déconseillé. Il faut exposer le contrôleur Bluetooth de l’hôte au conteneur, ce qui dépend fortement de Linux/BlueZ/D-Bus.
+## Licence
+
+MIT — voir [LICENSE](LICENSE).
