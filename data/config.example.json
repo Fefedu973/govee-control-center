@@ -1,0 +1,8 @@
+{
+  "bleEnabled": false,
+  "bleActions": {},
+  "bleButtons": [],
+  "scenes": [],
+  "cloudApiKey": "",
+  "retryMode": false
+}

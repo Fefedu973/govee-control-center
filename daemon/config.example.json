@@ -1,0 +1,29 @@
+{
+  "sensor": {
+    "address": "aa:bb:cc:dd:ee:ff",
+    "button": 0
+  },
+  "target": {
+    "ip": "192.168.1.50",
+    "controlPort": 4003,
+    "listenPort": 4002
+  },
+  "behavior": {
+    "fallbackPowerOn": true,
+    "statusTimeoutMs": 900,
+    "verificationDelayMs": 1000,
+    "retryOnce": true,
+    "dedupeTtlMs": 300000
+  },
+  "action": {
+    "mode": "power-toggle",
+    "on": {
+      "brightness": null,
+      "color": null
+    }
+  },
+  "health": {
+    "host": "127.0.0.1",
+    "port": 8788
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "govee-smart-toggle-daemon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal H5122 to Govee LAN smart-toggle daemon for Raspberry Pi",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check src/config.js && node --check src/ble-scanner.js && node --check src/govee-lan.js && node --check src/health-server.js && node --check src/h512x.js && node --check src/management-page.js && node --check src/state-store.js && node --test"
+  },
+  "dependencies": {
+    "@stoprocent/noble": "2.5.3"
+  }
+}
