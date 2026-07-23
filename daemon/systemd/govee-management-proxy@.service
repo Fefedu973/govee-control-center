@@ -1,0 +1,18 @@
+[Unit]
+Description=LAN proxy for the Govee management console on %I
+Requires=govee-smart-toggle.service
+After=govee-smart-toggle.service
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:8788
+DynamicUser=true
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictSUIDSGID=true
