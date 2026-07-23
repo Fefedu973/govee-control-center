@@ -58,11 +58,25 @@ export function validateConfig(raw) {
         name: 'action.on.brightness',
       }),
       color: normalizeColor(raw.action?.on?.color),
+      kelvin: optionalInteger(raw.action?.on?.kelvin, {
+        min: 2000,
+        max: 9000,
+        name: 'action.on.kelvin',
+      }),
     },
   };
 
-  if (actionMode === 'power-color-toggle' && !action.on.color && action.on.brightness === null) {
-    throw new Error('power-color-toggle requires a color or brightness');
+  if (action.on.color && action.on.kelvin !== null) {
+    throw new Error('action.on.color and action.on.kelvin are mutually exclusive');
+  }
+
+  if (
+    actionMode === 'power-color-toggle'
+    && !action.on.color
+    && action.on.kelvin === null
+    && action.on.brightness === null
+  ) {
+    throw new Error('power-color-toggle requires a color, color temperature, or brightness');
   }
 
   return {

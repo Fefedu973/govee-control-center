@@ -19,7 +19,8 @@
     "mode": "power-toggle",
     "on": {
       "brightness": null,
-      "color": null
+      "color": null,
+      "kelvin": null
     }
   },
   "health": {

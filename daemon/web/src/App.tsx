@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { LoaderCircle, RefreshCw } from 'lucide-react'
+import { LoaderCircle, RefreshCw, Thermometer } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,7 @@ type DaemonConfig = {
     mode: 'power-toggle' | 'power-color-toggle'
     on: {
       color: RgbColor | null
+      kelvin: number | null
       brightness: number | null
     }
   }
@@ -148,6 +149,8 @@ function App() {
   const [status, setStatus] = useState<DaemonStatus | null>(null)
   const [color, setColor] = useState('#ffffff')
   const [colorText, setColorText] = useState('#ffffff')
+  const [temperatureEnabled, setTemperatureEnabled] = useState(false)
+  const [kelvin, setKelvin] = useState(4000)
   const [brightnessEnabled, setBrightnessEnabled] = useState(false)
   const [brightness, setBrightness] = useState(80)
   const [loading, setLoading] = useState(true)
@@ -180,6 +183,10 @@ function App() {
         const currentColor = rgbToHex(currentConfig.action.on.color)
         setColor(currentColor)
         setColorText(currentColor)
+        setTemperatureEnabled(
+          typeof currentConfig.action.on.kelvin === 'number',
+        )
+        setKelvin(currentConfig.action.on.kelvin ?? 4000)
         setBrightnessEnabled(currentConfig.action.on.brightness !== null)
         setBrightness(currentConfig.action.on.brightness ?? 80)
       })
@@ -272,8 +279,12 @@ function App() {
         mode: draft.action.mode,
         on: {
           color:
-            draft.action.mode === 'power-color-toggle'
+            draft.action.mode === 'power-color-toggle' && !temperatureEnabled
               ? hexToRgb(/^#[0-9a-f]{6}$/i.test(colorText) ? colorText : color)
+              : null,
+          kelvin:
+            draft.action.mode === 'power-color-toggle' && temperatureEnabled
+              ? kelvin
               : null,
           brightness:
             draft.action.mode === 'power-color-toggle' && brightnessEnabled
@@ -529,6 +540,7 @@ function App() {
                       type="color"
                       className="size-8 shrink-0 cursor-pointer p-1"
                       value={color}
+                      disabled={temperatureEnabled}
                       onChange={(event) => {
                         setColor(event.target.value)
                         setColorText(event.target.value)
@@ -537,6 +549,7 @@ function App() {
                     <Input
                       id="color-value"
                       value={colorText}
+                      disabled={temperatureEnabled}
                       onChange={(event) => setColorText(event.target.value)}
                       onBlur={() => {
                         if (/^#[0-9a-f]{6}$/i.test(colorText)) {
@@ -549,6 +562,9 @@ function App() {
                       }}
                     />
                   </div>
+                  <FieldDescription>
+                    Désactivée quand la température est utilisée.
+                  </FieldDescription>
                 </Field>
 
                 <Field>
@@ -566,6 +582,7 @@ function App() {
                   </Field>
                   <div className="flex min-h-8 items-center gap-3">
                     <Slider
+                      aria-label="Luminosité à l’allumage"
                       value={[brightness]}
                       min={1}
                       max={100}
@@ -579,6 +596,41 @@ function App() {
                     />
                     <span className="w-10 text-right text-sm tabular-nums text-muted-foreground">
                       {brightness} %
+                    </span>
+                  </div>
+                </Field>
+
+                <Field className="sm:col-span-2">
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="force-temperature"
+                      checked={temperatureEnabled}
+                      onCheckedChange={setTemperatureEnabled}
+                    />
+                    <FieldContent>
+                      <FieldLabel htmlFor="force-temperature">
+                        <Thermometer className="size-3.5" />
+                        Utiliser la température de couleur
+                      </FieldLabel>
+                      <FieldDescription>Plage de 2000 à 9000 K.</FieldDescription>
+                    </FieldContent>
+                  </Field>
+                  <div className="flex min-h-8 items-center gap-3">
+                    <Slider
+                      aria-label="Température de couleur"
+                      value={[kelvin]}
+                      min={2000}
+                      max={9000}
+                      step={100}
+                      disabled={!temperatureEnabled}
+                      onValueChange={(value) =>
+                        setKelvin(
+                          typeof value === 'number' ? value : (value[0] ?? 4000),
+                        )
+                      }
+                    />
+                    <span className="w-16 text-right text-sm tabular-nums text-muted-foreground">
+                      {kelvin} K
                     </span>
                   </div>
                 </Field>

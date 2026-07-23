@@ -8,7 +8,7 @@ It performs one job:
 2. deduplicate repeated advertisements by the H512x event id;
 3. query the configured Govee light over the LAN API;
 4. send the opposite `turn` state;
-5. optionally apply a configured color and brightness when turning on;
+5. optionally apply a configured RGB color or color temperature and brightness when turning on;
 6. verify the resulting state once.
 
 The daemon stores only a bounded list of 32 event ids, the last known power state, timestamps, and four counters. Its HTTP endpoint binds to loopback only.
@@ -115,7 +115,7 @@ The page lets you:
 - choose which physical button index triggers the action;
 - discover and select a Govee LAN device;
 - use a simple power toggle; or
-- turn on with a forced RGB color and optional brightness, then turn off normally.
+- turn on with a forced RGB color or a 2000–9000 K color temperature and optional brightness, then turn off normally.
 
 `Enregistrer et tester` persists the settings and immediately executes one action. Press it a second time to restore the previous power state when testing the simple toggle.
 
