@@ -8,7 +8,7 @@ Hub local pour piloter des appareils Govee, avec **tous les moyens de contrôle 
 
 Chaque appareil est fusionné en une seule fiche (par adresse MAC) quel que soit le transport. Une commande passe par le **meilleur transport disponible** : LAN d'abord, cloud en secours — ou un transport forcé à la demande.
 
-> Pour la production Raspberry Pi « un bouton → une lampe », utilise le daemon allégé dans [`daemon/`](daemon/README.md). Ce hub est l'application complète avec interface.
+> Pour la production Raspberry Pi « un bouton → une lampe », utilise le daemon allégé dans [`daemon/`](daemon/README.md). Sa console privée peut être ouverte depuis Windows avec [`scripts/open-daemon-console.ps1`](scripts/open-daemon-console.ps1). Ce hub est l'application complète avec interface.
 
 ## Stack
 

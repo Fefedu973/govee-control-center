@@ -1,6 +1,6 @@
 # Govee smart-toggle daemon
 
-This is the production replacement for the former 257 MB Govee Control Hub on the Raspberry Pi. It has a small loopback-only configuration page, but intentionally contains no public dashboard, scenes, packet history, cloud API, screenshots, or firmware tools.
+This is the production replacement for the former 257 MB Govee Control Hub on the Raspberry Pi. It has a responsive loopback-only configuration page, but intentionally contains no public dashboard, scenes, packet history, cloud API, screenshots, or firmware tools.
 
 It performs one job:
 
@@ -61,6 +61,14 @@ ssh -L 8788:127.0.0.1:8788 pi@raspberrypi
 
 Then open `http://127.0.0.1:8788`. Keep the SSH session open while using the page.
 
+On Windows, the repository includes a helper that creates the tunnel, waits for it to become ready, and opens the page:
+
+```powershell
+.\scripts\open-daemon-console.ps1 -SshHost <ssh-host>
+```
+
+The helper expects key-based SSH authentication. If the workstation already has an SSH alias for the Pi, pass that alias as `-SshHost`.
+
 The page lets you:
 
 - press and select a detected H5122/H5125/H5126 Bluetooth button;
@@ -70,3 +78,13 @@ The page lets you:
 - turn on with a forced RGB color and optional brightness, then turn off normally.
 
 `Enregistrer et tester` persists the settings and immediately executes one action. Press it a second time to restore the previous power state when testing the simple toggle. Do not expose port 8788 through the router or a public reverse proxy.
+
+## Access away from the home network
+
+The loopback binding is intentional: the console can change the physical button-to-light mapping and execute a test action. For remote access, first reach the Pi through a private network such as a home VPN or Tailscale, then use the same SSH tunnel:
+
+```powershell
+.\scripts\open-daemon-console.ps1 -SshHost <pi-vpn-hostname>
+```
+
+This keeps the HTTP console private and reuses SSH authentication. Avoid changing `health.host` to `0.0.0.0` unless the Pi is protected by a host firewall and the port is restricted to a trusted private subnet.
