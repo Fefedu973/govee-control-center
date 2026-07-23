@@ -1,0 +1,11 @@
+[Unit]
+Description=Expose the Govee management console on LAN address %I
+After=network-online.target
+Wants=network-online.target
+
+[Socket]
+ListenStream=%I:8788
+NoDelay=true
+
+[Install]
+WantedBy=sockets.target
