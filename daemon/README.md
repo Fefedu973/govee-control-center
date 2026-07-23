@@ -56,7 +56,7 @@ Configuration lives in `/etc/govee-smart-toggle/config.json`; minimal runtime st
 The console is deliberately bound to `127.0.0.1` on the Raspberry Pi. Open an SSH tunnel from your workstation:
 
 ```bash
-ssh -L 8788:127.0.0.1:8788 pi@raspberrypi
+ssh -L 8788:127.0.0.1:8788 pi@192.168.1.37
 ```
 
 Then open `http://127.0.0.1:8788`. Keep the SSH session open while using the page.

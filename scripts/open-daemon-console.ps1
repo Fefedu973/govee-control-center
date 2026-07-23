@@ -3,12 +3,12 @@
 Opens the loopback-only Govee daemon console through an SSH tunnel.
 
 .EXAMPLE
-.\scripts\open-daemon-console.ps1 -SshHost raspberrypi
+.\scripts\open-daemon-console.ps1 -SshHost pi@192.168.1.37
 #>
 
 [CmdletBinding()]
 param(
-    [string]$SshHost = 'raspberrypi',
+    [string]$SshHost = 'pi@192.168.1.37',
     [ValidateRange(1, 65535)]
     [int]$LocalPort = 8788,
     [ValidateRange(1, 65535)]
