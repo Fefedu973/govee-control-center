@@ -141,7 +141,17 @@ export class GoveeLanClient {
       if (action.on?.brightness !== null && action.on?.brightness !== undefined) {
         await this.#send({ msg: { cmd: 'brightness', data: { value: action.on.brightness } } });
       }
-      if (action.on?.color) {
+      if (action.on?.kelvin !== null && action.on?.kelvin !== undefined) {
+        await this.#send({
+          msg: {
+            cmd: 'colorwc',
+            data: {
+              color: { r: 0, g: 0, b: 0 },
+              colorTemInKelvin: action.on.kelvin,
+            },
+          },
+        });
+      } else if (action.on?.color) {
         await this.#send({
           msg: {
             cmd: 'colorwc',

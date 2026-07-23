@@ -15,7 +15,7 @@ const baseConfig = {
 test('defaults to the simple power toggle action', () => {
   assert.deepEqual(validateConfig(baseConfig).action, {
     mode: 'power-toggle',
-    on: { brightness: null, color: null },
+    on: { brightness: null, color: null, kelvin: null },
   });
 });
 
@@ -31,10 +31,38 @@ test('accepts a forced color and brightness action', () => {
   assert.deepEqual(config.action.on.color, { r: 255, g: 120, b: 48 });
 });
 
+test('accepts a forced color temperature action', () => {
+  const config = validateConfig({
+    ...baseConfig,
+    action: {
+      mode: 'power-color-toggle',
+      on: { brightness: 65, color: null, kelvin: 4200 },
+    },
+  });
+  assert.equal(config.action.on.kelvin, 4200);
+  assert.equal(config.action.on.color, null);
+});
+
+test('rejects simultaneous RGB and color temperature settings', () => {
+  assert.throws(
+    () => validateConfig({
+      ...baseConfig,
+      action: {
+        mode: 'power-color-toggle',
+        on: {
+          color: { r: 255, g: 120, b: 48 },
+          kelvin: 4200,
+        },
+      },
+    }),
+    /mutually exclusive/,
+  );
+});
+
 test('rejects a forced action without a visual setting', () => {
   assert.throws(
     () => validateConfig({ ...baseConfig, action: { mode: 'power-color-toggle', on: {} } }),
-    /requires a color or brightness/,
+    /requires a color, color temperature, or brightness/,
   );
 });
 

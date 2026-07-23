@@ -106,3 +106,56 @@ test('applies the configured brightness and color only when turning the device o
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test('applies a configured color temperature with the same LAN command as the main app', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'govee-lan-temperature-'));
+  const store = new StateStore(path.join(directory, 'state.json'));
+  await store.init();
+
+  const device = dgram.createSocket('udp4');
+  const controlPort = await listen(device);
+  const commands = [];
+  device.on('message', (buffer, remote) => {
+    const packet = JSON.parse(buffer.toString('utf8'));
+    commands.push(packet.msg);
+    if (['devStatus', 'status'].includes(packet.msg.cmd)) {
+      const status = Buffer.from(JSON.stringify({ msg: { cmd: 'devStatus', data: { onOff: 0 } } }));
+      device.send(status, remote.port, remote.address);
+    }
+  });
+
+  const client = new GoveeLanClient({
+    target: { ip: '127.0.0.1', controlPort, listenPort: 0 },
+    behavior: {
+      fallbackPowerOn: true,
+      statusTimeoutMs: 500,
+      verificationDelayMs: 10_000,
+      retryOnce: false,
+    },
+    store,
+    log() {},
+  });
+
+  try {
+    await client.start();
+    const result = await client.smartToggle({
+      mode: 'power-color-toggle',
+      on: { brightness: null, color: null, kelvin: 4200 },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+
+    assert.equal(result.nextPower, 1);
+    assert.ok(commands.some((command) => (
+      command.cmd === 'colorwc'
+      && command.data.colorTemInKelvin === 4200
+      && command.data.color.r === 0
+      && command.data.color.g === 0
+      && command.data.color.b === 0
+    )));
+  } finally {
+    await client.stop();
+    device.close();
+    await store.flush();
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});
